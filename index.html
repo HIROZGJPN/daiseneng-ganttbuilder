@@ -78,10 +78,6 @@
   "use strict";
 
   var WD = ['日','月','火','水','木','金','土'];
-  var CAT_RGB = {
-    1:[219,231,244], 2:[245,222,210], 3:[228,236,212], 4:[236,220,236],
-    5:[215,236,233], 6:[245,232,194], 7:[223,227,230], 8:[246,219,224]
-  };
   var idSeq = Date.now();
   function newId(){ return 'id' + (idSeq++); }
 
@@ -268,6 +264,7 @@
         '<div class="meta"><span class="meta-k">現場代理人</span><span class="meta-v">'+(esc(state.siteRep)||'—')+'</span></div>'+
         '<div class="meta"><span class="meta-k">設計担当</span><span class="meta-v">'+(esc(state.designer)||'—')+'</span></div>'+
         '<div class="meta"><span class="meta-k">作成日</span><span class="meta-v">'+(fmtDate(state.createdDate)||'—')+'</span></div>'+
+        '<div class="meta"><span class="meta-v">株式会社 大泉エンジニアリング</span></div>'+
       '</div>'+
       '<div class="period-line">期間　'+fmtDateW(start)+' 〜 '+fmtDateW(end)+'　（'+state.days+'日間） <span class="dot">・</span> 工種 '+state.trades.length+'件 <span class="dot">・</span> 作業 '+totalTasks+'件</div>'+
       '<div class="grid-scroll"><table class="gantt">'+
@@ -331,15 +328,37 @@
 
   function hex2(n){ return ('0'+Math.max(0,Math.min(255,Math.round(n))).toString(16).toUpperCase()).slice(-2); }
   function argbFromRgb(rgb){ return 'FF'+hex2(rgb[0])+hex2(rgb[1])+hex2(rgb[2]); }
-  var XLSX_HEADER_FILL = argbFromRgb([47,93,138]);
-  var XLSX_SAT_HEAD_TEXT = argbFromRgb([191,224,247]);
-  var XLSX_SUN_HEAD_TEXT = argbFromRgb([250,199,188]);
+  var XLSX_HEADER_FILL = 'FFD9D9D9';
+  var XLSX_TASK_FILL = 'FFBFBFBF';
   var XLSX_SAT_CELL_FILL = argbFromRgb([223,234,246]);
   var XLSX_SUN_CELL_FILL = argbFromRgb([251,225,222]);
-  var XLSX_BORDER_COLOR = argbFromRgb([184,176,160]);
-  function xlsxBorder(){
-    var side = { style:'thin', color:{ argb:XLSX_BORDER_COLOR } };
-    return { top:side, left:side, bottom:side, right:side };
+  var XLSX_FONT = '游ゴシック';
+  function xlsxBorder(sides){
+    var thin = { style:'thin' };
+    var b = {};
+    (sides || ['top','left','bottom','right']).forEach(function(s){ b[s] = thin; });
+    return b;
+  }
+  function xlsxBorderRange(ws, r1, c1, r2, c2){
+    for(var rr=r1; rr<=r2; rr++){
+      for(var cc=c1; cc<=c2; cc++){ ws.getCell(rr,cc).border = xlsxBorder(); }
+    }
+  }
+  // Splits `totalCols` 1-indexed columns into boxes proportional to `weights`,
+  // returning boundary column-counts (length weights.length+1, first 0, last totalCols).
+  function splitColumnsByWeight(totalCols, weights){
+    var sum = weights.reduce(function(a,b){ return a+b; }, 0);
+    var bounds = [0];
+    var acc = 0;
+    weights.forEach(function(w, i){
+      acc += w;
+      bounds.push(Math.min(totalCols, Math.max(bounds[i]+1, Math.round(totalCols*acc/sum))));
+    });
+    bounds[bounds.length-1] = totalCols;
+    for(var i=bounds.length-2; i>=1; i--){
+      if(bounds[i] >= bounds[i+1]) bounds[i] = bounds[i+1]-1;
+    }
+    return bounds;
   }
 
   function buildXlsxBlob(){
@@ -351,39 +370,98 @@
     wb.creator = '工程表ビルダー';
     var ws = wb.addWorksheet('工程表', { views:[{ showGridLines:false }] });
 
+    ws.properties.defaultRowHeight = 18.75;
     ws.getColumn(1).width = 16;
     ws.getColumn(2).width = 14;
-    for(var c=3;c<=lastCol;c++){ ws.getColumn(c).width = 4.6; }
+    for(var c=3;c<=lastCol;c++){ ws.getColumn(c).width = 7.625; }
 
-    var titleLabel = (state.days % 7 === 0) ? (state.days/7)+'週間工程表' : '工程表（'+state.days+'日間）';
-    ws.mergeCells(1,1,1,lastCol);
-    var titleCell = ws.getCell(1,1);
-    titleCell.value = titleLabel;
-    titleCell.font = { name:'Meiryo', size:16, bold:true };
-    titleCell.alignment = { horizontal:'center', vertical:'middle' };
-    ws.getRow(1).height = 26;
+    // 現場情報: mirrors the preview's meta-grid — one bordered label+value box per field.
+    // 現場名 is pinned to columns A:B (matching the 工種/担当会社 columns below);
+    // the remaining fields split proportionally across the day columns.
+    var metaLabelRow = 1, metaValueRow = 2;
+    ws.getRow(metaLabelRow).height = 20.1;
+    ws.getRow(metaValueRow).height = 58.5;
 
-    ws.mergeCells(2,1,2,lastCol);
-    var metaCell = ws.getCell(2,1);
-    metaCell.value = '現場名: '+(state.siteName||'—')+'　　工事名: '+(state.projectName||'—')+'　　現場代理人: '+(state.siteRep||'—')+'　　設計担当: '+(state.designer||'—')+'　　作成日: '+(fmtDate(state.createdDate)||'—');
-    metaCell.font = { name:'Meiryo', size:10 };
-    metaCell.alignment = { horizontal:'left', vertical:'middle' };
-    ws.getRow(2).height = 18;
+    function metaBox(c1, c2, label, value, align){
+      var alignment = align==='left'
+        ? { horizontal:'left', vertical:'middle', indent:1 }
+        : { horizontal:'center', vertical:'middle' };
 
-    var totalTasks = state.trades.reduce(function(s,t){ return s+t.tasks.length; }, 0);
-    ws.mergeCells(3,1,3,lastCol);
-    var periodCell = ws.getCell(3,1);
-    periodCell.value = '期間　'+fmtDateW(days[0])+' 〜 '+fmtDateW(days[days.length-1])+'　（'+state.days+'日間）　工種 '+state.trades.length+'件　作業 '+totalTasks+'件';
-    periodCell.font = { name:'Meiryo', size:10 };
-    periodCell.alignment = { horizontal:'left', vertical:'middle' };
-    ws.getRow(3).height = 18;
+      if(c2>c1) ws.mergeCells(metaLabelRow,c1,metaLabelRow,c2);
+      var labelCell = ws.getCell(metaLabelRow,c1);
+      labelCell.value = label;
+      labelCell.font = { name:XLSX_FONT, size:10, color:{argb:'FF8C8C8C'} };
+      labelCell.alignment = alignment;
+
+      if(c2>c1) ws.mergeCells(metaValueRow,c1,metaValueRow,c2);
+      var valueCell = ws.getCell(metaValueRow,c1);
+      valueCell.value = value;
+      valueCell.font = { name:XLSX_FONT, size:10, bold:true };
+      valueCell.alignment = Object.assign({ wrapText:true }, alignment);
+
+      xlsxBorderRange(ws, metaLabelRow, c1, metaValueRow, c2);
+    }
+
+    metaBox(1, 2, '現場名', state.siteName||'—', 'left');
+    var restBounds = splitColumnsByWeight(lastCol-2, [6,2,2,4]);
+    var restDefs = [
+      ['工事名', state.projectName||'—', 'left'],
+      ['現場代理人', state.siteRep||'—', 'center'],
+      ['設計担当', state.designer||'—', 'center']
+    ];
+    restDefs.forEach(function(def, i){
+      metaBox(2+restBounds[i]+1, 2+restBounds[i+1], def[0], def[1], def[2]);
+    });
+
+    // 作成日・会社名: this box's top row is split in two (a narrow "作成日"
+    // caption cell, then the date itself sits beside it), while the bottom
+    // row merges across the whole width for the company name.
+    (function(){
+      var c1 = 2+restBounds[3]+1, c2 = 2+restBounds[4];
+      var labelCell = ws.getCell(metaLabelRow,c1);
+      labelCell.value = '作成日';
+      labelCell.font = { name:XLSX_FONT, size:10, color:{argb:'FF8C8C8C'} };
+      labelCell.alignment = { horizontal:'center', vertical:'middle' };
+      if(c2>c1+1) ws.mergeCells(metaLabelRow,c1+1,metaLabelRow,c2);
+      var dateCell = ws.getCell(metaLabelRow,c1+1);
+      dateCell.value = fmtDate(state.createdDate)||'—';
+      dateCell.font = { name:XLSX_FONT, size:10, color:{argb:'FF8C8C8C'} };
+      dateCell.alignment = { horizontal:'center', vertical:'middle' };
+
+      if(c2>c1) ws.mergeCells(metaValueRow,c1,metaValueRow,c2);
+      var companyCell = ws.getCell(metaValueRow,c1);
+      companyCell.value = '株式会社 大泉エンジニアリング';
+      companyCell.font = { name:XLSX_FONT, size:10, bold:true };
+      companyCell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+
+      xlsxBorderRange(ws, metaLabelRow, c1, metaValueRow, c2);
+    })();
+
+    var periodRow = 3;
+    ws.getRow(periodRow).height = 30;
+    var periodBounds = splitColumnsByWeight(lastCol, [2,6,2,6]);
+    var periodAligns = ['center','right','center','left'];
+    var periodSegs = [
+      '期間', fmtDateW(days[0]), '〜', fmtDateW(days[days.length-1])
+    ];
+    periodSegs.forEach(function(text, i){
+      var c1 = periodBounds[i]+1, c2 = periodBounds[i+1];
+      if(c2>c1) ws.mergeCells(periodRow,c1,periodRow,c2);
+      var cell = ws.getCell(periodRow,c1);
+      cell.value = text;
+      cell.font = { name:XLSX_FONT, size:10 };
+      cell.alignment = { horizontal:periodAligns[i], vertical:'middle' };
+      if(i===0) cell.border = xlsxBorder();
+      else if(i===periodSegs.length-1) cell.border = xlsxBorder(['top','bottom','right']);
+      else cell.border = xlsxBorder(['top','bottom']);
+    });
 
     var headerRow = 4;
-    ws.getRow(headerRow).height = 28;
+    ws.getRow(headerRow).height = 27.95;
     var hc1 = ws.getCell(headerRow,1); hc1.value = '工種';
     var hc2 = ws.getCell(headerRow,2); hc2.value = '担当会社';
     [hc1,hc2].forEach(function(cell){
-      cell.font = { name:'Meiryo', size:10, bold:true, color:{argb:'FFFFFFFF'} };
+      cell.font = { name:XLSX_FONT, size:10, bold:true };
       cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_HEADER_FILL} };
       cell.alignment = { horizontal:'center', vertical:'middle' };
       cell.border = xlsxBorder();
@@ -391,11 +469,7 @@
     days.forEach(function(d, i){
       var cell = ws.getCell(headerRow, 3+i);
       cell.value = (d.getMonth()+1)+'/'+d.getDate()+'\n('+WD[d.getDay()]+')';
-      var wd = d.getDay();
-      var textColor = 'FFFFFFFF';
-      if(wd===6) textColor = XLSX_SAT_HEAD_TEXT;
-      else if(wd===0) textColor = XLSX_SUN_HEAD_TEXT;
-      cell.font = { name:'Meiryo', size:8, bold:true, color:{argb:textColor} };
+      cell.font = { name:XLSX_FONT, size:8, bold:true };
       cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_HEADER_FILL} };
       cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
       cell.border = xlsxBorder();
@@ -407,70 +481,126 @@
       var emptyCell = ws.getCell(r,1);
       emptyCell.value = '工種が登録されていません。';
       emptyCell.alignment = { horizontal:'center', vertical:'middle' };
-      emptyCell.font = { name:'Meiryo', size:10, color:{argb:'FF8C8C8C'} };
+      emptyCell.font = { name:XLSX_FONT, size:10, color:{argb:'FF8C8C8C'} };
       r++;
     } else {
+      // Each lane gets 3 excel rows (thin padding / task / thin padding) for
+      // vertical breathing room, since a single row reads as too cramped.
+      // Day columns always keep left/right gridlines; top/bottom only mark
+      // the outer edge of the lane's own 3-row band (not between its sub-rows).
+      var ROWS_PER_LANE = 3;
+      function weekendFill(wd){
+        if(wd===6) return { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_SAT_CELL_FILL} };
+        if(wd===0) return { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_SUN_CELL_FILL} };
+        return null;
+      }
       state.trades.forEach(function(trade){
         var res = assignLanes(trade.tasks, days[0], days.length);
         var laneCount = res.laneCount, placed = res.placed;
         var tradeStartRow = r;
         for(var lane=0; lane<laneCount; lane++){
-          var rowIdx = r + lane;
-          ws.getRow(rowIdx).height = 20;
+          var laneBase = r + lane*ROWS_PER_LANE;
+          var padTopRow = laneBase, taskRow = laneBase+1, padBottomRow = laneBase+2;
+          var rowSides = {};
+          rowSides[padTopRow] = ['left','right','top'];
+          rowSides[taskRow] = ['left','right'];
+          rowSides[padBottomRow] = ['left','right','bottom'];
+
+          [padTopRow, taskRow, padBottomRow].forEach(function(rowIdx){ ws.getRow(rowIdx).height = 15; });
+
+          days.forEach(function(d, di){
+            var fill = weekendFill(d.getDay());
+            [padTopRow, taskRow, padBottomRow].forEach(function(rowIdx){
+              var cell = ws.getCell(rowIdx, 3+di);
+              cell.border = xlsxBorder(rowSides[rowIdx]);
+              cell.font = { name:XLSX_FONT };
+              if(fill) cell.fill = fill;
+            });
+          });
+
           var laneTasks = placed.filter(function(p){ return p.lane===lane; }).sort(function(a,b){ return a.startIdx-b.startIdx; });
           var di = 0, ti = 0;
           while(di < days.length){
             var task = laneTasks[ti];
             if(task && task.startIdx===di){
               var startCol = 3+di, endCol = 3+di+task.span-1;
-              if(task.span>1) ws.mergeCells(rowIdx,startCol,rowIdx,endCol);
-              var rgb = CAT_RGB[trade.color] || CAT_RGB[1];
+              if(task.span>1) ws.mergeCells(taskRow,startCol,taskRow,endCol);
               for(var cc=startCol; cc<=endCol; cc++){
-                var partCell = ws.getCell(rowIdx,cc);
-                partCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:argbFromRgb(rgb)} };
-                partCell.border = xlsxBorder();
+                ws.getCell(taskRow,cc).fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_TASK_FILL} };
               }
-              var tcell = ws.getCell(rowIdx,startCol);
+              var tcell = ws.getCell(taskRow,startCol);
               tcell.value = task.name || '';
-              tcell.font = { name:'Meiryo', size:8 };
+              tcell.font = { name:XLSX_FONT, size:8 };
               tcell.alignment = { horizontal:'left', vertical:'middle', indent:1 };
               di += task.span; ti++;
             } else {
-              var dcell = ws.getCell(rowIdx, 3+di);
-              var wd2 = days[di].getDay();
-              if(wd2===6) dcell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_SAT_CELL_FILL} };
-              else if(wd2===0) dcell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_SUN_CELL_FILL} };
-              dcell.border = xlsxBorder();
               di++;
             }
           }
         }
-        ws.mergeCells(tradeStartRow,1,tradeStartRow+laneCount-1,1);
-        ws.mergeCells(tradeStartRow,2,tradeStartRow+laneCount-1,2);
-        for(var lr=tradeStartRow; lr<tradeStartRow+laneCount; lr++){
+        var tradeEndRow = tradeStartRow + laneCount*ROWS_PER_LANE - 1;
+        ws.mergeCells(tradeStartRow,1,tradeEndRow,1);
+        ws.mergeCells(tradeStartRow,2,tradeEndRow,2);
+        for(var lr=tradeStartRow; lr<=tradeEndRow; lr++){
           ws.getCell(lr,1).border = xlsxBorder();
           ws.getCell(lr,2).border = xlsxBorder();
         }
         var nameCell = ws.getCell(tradeStartRow,1);
         nameCell.value = trade.name || '（工種名未入力）';
-        nameCell.font = { name:'Meiryo', size:9, bold:true };
+        nameCell.font = { name:XLSX_FONT, size:10, bold:true };
         nameCell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
         var contCell = ws.getCell(tradeStartRow,2);
         contCell.value = trade.contractor || '—';
-        contCell.font = { name:'Meiryo', size:9 };
+        contCell.font = { name:XLSX_FONT, size:10 };
         contCell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
-        r += laneCount;
+        r += laneCount*ROWS_PER_LANE;
       });
     }
 
     if(state.remarks){
-      r++;
-      ws.mergeCells(r,1,r,lastCol);
-      var remCell = ws.getCell(r,1);
-      remCell.value = '備考：'+state.remarks;
-      remCell.font = { name:'Meiryo', size:9 };
-      remCell.alignment = { horizontal:'left', vertical:'middle', wrapText:true };
-      ws.getRow(r).height = 30;
+      // One excel row per line, with the "備考" label merged vertically down
+      // the whole block; body text sits unmerged in column B (overflows
+      // visually into the empty cells to its right, same as Excel would show it).
+      var lines = state.remarks.split('\n');
+      var remStartRow = r;
+      lines.forEach(function(line, i){
+        var rowIdx = remStartRow + i;
+        var isFirst = i===0, isLast = i===lines.length-1;
+        ws.getRow(rowIdx).height = 20.1;
+
+        var bodySides = ['left'];
+        if(isFirst) bodySides.push('top');
+        if(isLast) bodySides.push('bottom');
+        var bodyCell = ws.getCell(rowIdx,2);
+        bodyCell.value = line;
+        bodyCell.font = { name:XLSX_FONT, size:10 };
+        bodyCell.alignment = { vertical:'middle' };
+        bodyCell.border = xlsxBorder(bodySides);
+
+        for(var c=3;c<=lastCol;c++){
+          var sides = [];
+          if(isFirst) sides.push('top');
+          if(isLast) sides.push('bottom');
+          if(c===lastCol) sides.push('right');
+          var cell = ws.getCell(rowIdx,c);
+          if(sides.length) cell.border = xlsxBorder(sides);
+          cell.font = { name:XLSX_FONT, size:9 };
+          cell.alignment = { vertical:'middle', wrapText:true };
+        }
+      });
+
+      var remEndRow = remStartRow + lines.length - 1;
+      ws.mergeCells(remStartRow,1,remEndRow,1);
+      // ExcelJS shares one style across all cells in a merge — the last
+      // .border write here wins for the whole block, so give every row the
+      // same full box rather than a per-edge pattern that would just collapse.
+      ws.getCell(remStartRow,1).border = xlsxBorder();
+      var remLabelCell = ws.getCell(remStartRow,1);
+      remLabelCell.value = '備考';
+      remLabelCell.font = { name:XLSX_FONT, size:10, bold:true, color:{argb:'FF5B6066'} };
+      remLabelCell.alignment = { horizontal:'center', vertical:'middle' };
+
+      r = remEndRow;
     }
 
     ws.pageSetup = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, horizontalCentered:true };
