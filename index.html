@@ -1,0 +1,1044 @@
+<title>工程表ビルダー</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#f3f1ec;
+  --grid-line: rgba(47,93,138,0.06);
+  --surface:#ffffff;
+  --surface-alt:#faf8f3;
+  --ink:#23262a;
+  --ink-soft:#5b6066;
+  --ink-faint:#8b8f93;
+  --border:#dcd6c9;
+  --border-strong:#b8b0a0;
+  --accent:#2f5d8a;
+  --accent-ink:#ffffff;
+  --accent-soft:#e3edf6;
+  --danger:#ab4a40;
+  --sat-bg:#dfeaf6;
+  --sat-wd:#2f5d8a;
+  --sun-bg:#fbe1de;
+  --sun-wd:#a8433a;
+  --today:#c9860a;
+
+  --cat1-bg:#dbe7f4; --cat1-edge:#3f6fa0;
+  --cat2-bg:#f5ded2; --cat2-edge:#b5643a;
+  --cat3-bg:#e4ecd4; --cat3-edge:#6d8a3e;
+  --cat4-bg:#ecdcec; --cat4-edge:#8a4f8a;
+  --cat5-bg:#d7ece9; --cat5-edge:#2f8a7d;
+  --cat6-bg:#f5e8c2; --cat6-edge:#b3891c;
+  --cat7-bg:#dfe3e6; --cat7-edge:#5c6b75;
+  --cat8-bg:#f6dbe0; --cat8-edge:#ad4f66;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1c1e20;
+    --grid-line: rgba(125,176,224,0.06);
+    --surface:#242729;
+    --surface-alt:#2a2d30;
+    --ink:#ece9e3;
+    --ink-soft:#a8adb1;
+    --ink-faint:#767b7f;
+    --border:#3b3e41;
+    --border-strong:#4d5155;
+    --accent:#7db0e0;
+    --accent-ink:#0f1b26;
+    --accent-soft:#243b4d;
+    --danger:#e2988d;
+    --sat-bg:#213a52;
+    --sat-wd:#8fbfe8;
+    --sun-bg:#472b29;
+    --sun-wd:#e3958a;
+    --today:#e0b04d;
+
+    --cat1-bg:#223c53; --cat1-edge:#8fbfe8;
+    --cat2-bg:#4a2e20; --cat2-edge:#e2926a;
+    --cat3-bg:#33401f; --cat3-edge:#a3c26a;
+    --cat4-bg:#402a40; --cat4-edge:#c98bc9;
+    --cat5-bg:#1f403b; --cat5-edge:#6cc7b9;
+    --cat6-bg:#453a17; --cat6-edge:#e0bb5a;
+    --cat7-bg:#313a40; --cat7-edge:#9fb0ba;
+    --cat8-bg:#452530; --cat8-edge:#e08ba0;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1c1e20;
+  --grid-line: rgba(125,176,224,0.06);
+  --surface:#242729;
+  --surface-alt:#2a2d30;
+  --ink:#ece9e3;
+  --ink-soft:#a8adb1;
+  --ink-faint:#767b7f;
+  --border:#3b3e41;
+  --border-strong:#4d5155;
+  --accent:#7db0e0;
+  --accent-ink:#0f1b26;
+  --accent-soft:#243b4d;
+  --danger:#e2988d;
+  --sat-bg:#213a52;
+  --sat-wd:#8fbfe8;
+  --sun-bg:#472b29;
+  --sun-wd:#e3958a;
+  --today:#e0b04d;
+
+  --cat1-bg:#223c53; --cat1-edge:#8fbfe8;
+  --cat2-bg:#4a2e20; --cat2-edge:#e2926a;
+  --cat3-bg:#33401f; --cat3-edge:#a3c26a;
+  --cat4-bg:#402a40; --cat4-edge:#c98bc9;
+  --cat5-bg:#1f403b; --cat5-edge:#6cc7b9;
+  --cat6-bg:#453a17; --cat6-edge:#e0bb5a;
+  --cat7-bg:#313a40; --cat7-edge:#9fb0ba;
+  --cat8-bg:#452530; --cat8-edge:#e08ba0;
+}
+
+*{ box-sizing:border-box; }
+body{
+  margin:0;
+  background:
+    linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0/32px 32px,
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0/32px 32px,
+    var(--bg);
+  color:var(--ink);
+  font-family:'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+  font-size:14px;
+  line-height:1.6;
+}
+h1,h2{ font-family:'Zen Kaku Gothic New','Noto Sans JP',sans-serif; margin:0; text-wrap:balance; }
+button{ font-family:inherit; }
+
+.topbar{ max-width:1600px; margin:0 auto; padding:28px 24px 8px; }
+.brand{ display:flex; align-items:center; gap:12px; }
+.brand-mark{ display:inline-flex; align-items:center; justify-content:center; width:42px; height:42px; border-radius:9px; background:var(--accent); color:var(--accent-ink); font-family:'Zen Kaku Gothic New',sans-serif; font-weight:700; font-size:12.5px; letter-spacing:.02em; flex:0 0 auto; }
+.brand h1{ font-size:22px; font-weight:700; }
+.tagline{ margin:8px 0 0; color:var(--ink-soft); font-size:13.5px; max-width:660px; }
+
+.shell{ max-width:1600px; margin:0 auto; padding:16px 24px 60px; display:grid; grid-template-columns:380px 1fr; gap:22px; align-items:start; }
+@media (max-width:980px){ .shell{ grid-template-columns:1fr; } }
+
+.card{ background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 18px 20px; }
+.card + .card{ margin-top:16px; }
+.card h2{ font-size:14px; font-weight:700; margin-bottom:12px; letter-spacing:.01em; }
+.card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.card-head h2{ margin-bottom:0; }
+
+.field-grid{ display:grid; grid-template-columns:1fr; gap:12px; }
+.field-grid.two{ grid-template-columns:1fr 1fr; }
+label{ display:flex; flex-direction:column; gap:5px; font-size:12.5px; color:var(--ink-soft); font-weight:500; }
+input[type=text],input[type=date],input[type=number],textarea{
+  font:inherit; color:var(--ink); background:var(--surface-alt); border:1px solid var(--border); border-radius:7px; padding:8px 10px; width:100%;
+}
+input:focus,textarea:focus,button:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+textarea{ resize:vertical; font-family:inherit; }
+
+.preset-row{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+.preset-row button{ font-size:12.5px; padding:6px 12px; border-radius:999px; border:1px solid var(--border); background:var(--surface-alt); color:var(--ink-soft); cursor:pointer; }
+.preset-row button:hover{ border-color:var(--accent); color:var(--accent); }
+
+.btn-primary,.btn-secondary,.btn-ghost{ font-weight:600; border-radius:8px; cursor:pointer; border:1px solid transparent; padding:9px 14px; font-size:13px; }
+.btn-primary{ background:var(--accent); color:var(--accent-ink); }
+.btn-primary.small{ padding:6px 12px; font-size:12.5px; }
+.btn-secondary{ background:var(--surface-alt); color:var(--ink); border-color:var(--border); }
+.btn-secondary:hover{ border-color:var(--accent); }
+.btn-secondary:disabled{ opacity:.5; cursor:not-allowed; }
+.btn-ghost{ background:transparent; color:var(--accent); border:1px dashed var(--border-strong); }
+.btn-ghost.small{ padding:6px 10px; font-size:12.5px; }
+.file-btn{ display:inline-flex; align-items:center; }
+
+.icon-btn{ width:26px; height:26px; border-radius:6px; border:1px solid var(--border); background:var(--surface-alt); color:var(--ink-soft); cursor:pointer; font-size:12px; line-height:1; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.icon-btn:hover{ border-color:var(--danger); color:var(--danger); }
+
+.trade-card{ padding:12px 0; }
+.trade-card + .trade-card{ border-top:1px dashed var(--border); margin-top:4px; padding-top:14px; }
+.trade-row{ display:flex; gap:8px; margin-bottom:8px; }
+.trade-name{ flex:1 1 42%; font-weight:600; }
+.trade-contractor{ flex:1 1 42%; }
+.swatches{ display:flex; gap:6px; margin-bottom:10px; }
+.swatch{ width:20px; height:20px; border-radius:50%; border:2px solid transparent; cursor:pointer; padding:0; }
+.swatch.cat1{background:var(--cat1-edge);} .swatch.cat2{background:var(--cat2-edge);} .swatch.cat3{background:var(--cat3-edge);} .swatch.cat4{background:var(--cat4-edge);}
+.swatch.cat5{background:var(--cat5-edge);} .swatch.cat6{background:var(--cat6-edge);} .swatch.cat7{background:var(--cat7-edge);} .swatch.cat8{background:var(--cat8-edge);}
+.swatch.selected{ box-shadow:0 0 0 2px var(--surface), 0 0 0 3px var(--ink); }
+.tasks{ display:flex; flex-direction:column; gap:8px; margin-bottom:8px; }
+.task-row{ display:flex; align-items:center; gap:6px; }
+.task-name{ flex:1 1 42%; }
+.task-date{ flex:1 1 auto; min-width:0; }
+.tilde{ color:var(--ink-faint); font-size:12px; }
+.empty-hint{ color:var(--ink-faint); font-size:13px; margin:0; }
+
+.actions-row{ display:flex; flex-wrap:wrap; gap:8px; }
+.hint{ margin:10px 0 0; font-size:12.5px; color:var(--ink-soft); min-height:16px; }
+.static-note{ margin:10px 0 0; padding-top:10px; border-top:1px dashed var(--border); font-size:12px; color:var(--ink-faint); line-height:1.6; }
+
+.preview{ min-width:0; }
+.sheet{ padding:22px; }
+.sheet-title{ font-family:'Zen Kaku Gothic New',sans-serif; font-size:19px; font-weight:700; text-align:center; margin-bottom:14px; letter-spacing:.02em; }
+.meta-grid{ display:grid; grid-template-columns:1.3fr 1.6fr 1fr 1fr 1.1fr; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.meta{ display:flex; flex-direction:column; padding:8px 12px; border-right:1px solid var(--border); background:var(--surface-alt); min-width:0; }
+.meta:last-child{ border-right:none; }
+.meta-k{ font-size:11px; color:var(--ink-faint); margin-bottom:3px; }
+.meta-v{ font-size:13.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+@media (max-width:760px){ .meta-grid{ grid-template-columns:repeat(2,1fr);} .meta{ border-right:none; border-bottom:1px solid var(--border);} }
+.period-line{ margin-top:10px; font-size:13px; color:var(--ink-soft); text-align:center; }
+.period-line .dot{ margin:0 6px; color:var(--ink-faint); }
+
+.grid-scroll{ overflow-x:auto; border:1px solid var(--border-strong); border-radius:10px; margin-top:16px; }
+table.gantt{ border-collapse:collapse; width:100%; font-size:12.5px; font-variant-numeric:tabular-nums; }
+table.gantt th,table.gantt td{ border:1px solid var(--border); padding:0; text-align:center; white-space:nowrap; }
+.col-trade,.col-contractor{ position:sticky; background:var(--surface); font-weight:600; padding:8px 10px; white-space:normal; min-width:100px; }
+.col-trade{ left:0; z-index:2; }
+.col-contractor{ left:100px; z-index:2; color:var(--ink-soft); font-weight:500; min-width:112px; }
+thead .col-trade,thead .col-contractor{ background:var(--surface-alt); z-index:3; }
+.daycol{ background:var(--surface-alt); padding:6px 2px; min-width:42px; }
+.daycol .d-num{ display:block; font-weight:700; font-size:12px; }
+.daycol .d-wd{ display:block; font-size:10.5px; color:var(--ink-faint); }
+.daycol.sat{ background:var(--sat-bg); }
+.daycol.sat .d-wd{ color:var(--sat-wd); }
+.daycol.sun{ background:var(--sun-bg); }
+.daycol.sun .d-wd{ color:var(--sun-wd); }
+.daycol.today{ box-shadow:inset 0 3px 0 var(--today); }
+.daycell{ height:34px; }
+.daycell.sat{ background:var(--sat-bg); }
+.daycell.sun{ background:var(--sun-bg); }
+.daycell.today{ box-shadow:inset 0 0 0 1.5px var(--today); }
+tr.trade-end td{ border-bottom:2px solid var(--border-strong); }
+.task-bar{ font-weight:600; font-size:11.5px; padding:0 6px; text-overflow:ellipsis; overflow:hidden; }
+.task-bar.cat1{ background:var(--cat1-bg); border-left:4px solid var(--cat1-edge); }
+.task-bar.cat2{ background:var(--cat2-bg); border-left:4px solid var(--cat2-edge); }
+.task-bar.cat3{ background:var(--cat3-bg); border-left:4px solid var(--cat3-edge); }
+.task-bar.cat4{ background:var(--cat4-bg); border-left:4px solid var(--cat4-edge); }
+.task-bar.cat5{ background:var(--cat5-bg); border-left:4px solid var(--cat5-edge); }
+.task-bar.cat6{ background:var(--cat6-bg); border-left:4px solid var(--cat6-edge); }
+.task-bar.cat7{ background:var(--cat7-bg); border-left:4px solid var(--cat7-edge); }
+.task-bar.cat8{ background:var(--cat8-bg); border-left:4px solid var(--cat8-edge); }
+.task-bar.bar-today{ box-shadow:inset 0 0 0 2px var(--today); }
+.empty-row{ padding:24px; color:var(--ink-faint); text-align:center; }
+
+.remarks-block{ margin-top:16px; border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; }
+.remarks-label{ flex:0 0 auto; background:var(--surface-alt); padding:10px 14px; font-size:12.5px; font-weight:700; color:var(--ink-soft); border-right:1px solid var(--border); }
+.remarks-body{ padding:10px 14px; font-size:13px; white-space:pre-wrap; flex:1; }
+
+@media (prefers-reduced-motion: no-preference){
+  .btn-primary,.btn-secondary,.btn-ghost,.swatch,.preset-row button,.icon-btn{ transition:filter .15s ease,border-color .15s ease,color .15s ease; }
+}
+
+@media print{
+  body{ background:#fff; }
+  .topbar,.panel,.actions-card{ display:none !important; }
+  .shell{ display:block; padding:0; }
+  .sheet{ border:none; padding:0; }
+  .grid-scroll{ overflow:visible; border:none; }
+  table.gantt{ font-size:10px; }
+  .col-trade,.col-contractor{ position:static; }
+  @page{ size:landscape; margin:10mm; }
+}
+</style>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">工程</span>
+    <h1>工程表ビルダー</h1>
+  </div>
+  <p class="tagline">現場情報と工種・作業日程を入力すると、右側にそのまま印刷できる工程表が組み上がります。入力データはJSONで保存でき、あとから読み込んで再編集できます。</p>
+</header>
+
+<main class="shell">
+  <section class="panel" aria-label="入力パネル">
+    <div class="card">
+      <h2>現場情報</h2>
+      <div class="field-grid">
+        <label>現場名<input type="text" id="f-siteName" placeholder="例：◯◯ビル増築工事"></label>
+        <label>工事名<input type="text" id="f-projectName" placeholder="例：外壁改修および設備更新工事"></label>
+        <label>現場代理人<input type="text" id="f-siteRep" placeholder="担当者名"></label>
+        <label>設計担当<input type="text" id="f-designer" placeholder="担当者名"></label>
+        <label>作成日<input type="date" id="f-createdDate"></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>表示期間</h2>
+      <div class="field-grid two">
+        <label>開始日<input type="date" id="f-startDate"></label>
+        <label>表示日数<input type="number" id="f-days" min="1" max="60"></label>
+      </div>
+      <div class="preset-row">
+        <button type="button" data-weeks="7">1週間</button>
+        <button type="button" data-weeks="14">2週間</button>
+        <button type="button" data-weeks="21">3週間</button>
+        <button type="button" data-weeks="28">4週間</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>工種・作業</h2>
+        <button type="button" id="addTradeBtn" class="btn-primary small">+ 工種を追加</button>
+      </div>
+      <div id="tradesList"></div>
+    </div>
+
+    <div class="card">
+      <h2>備考</h2>
+      <textarea id="f-remarks" rows="4" placeholder="連絡事項や注意点を入力"></textarea>
+    </div>
+
+    <div class="card actions-card">
+      <h2>保存・出力</h2>
+      <div class="actions-row">
+        <button type="button" id="btnSaveJson" class="btn-secondary" disabled>入力データを保存(JSON)</button>
+        <label class="btn-secondary file-btn">入力データを読み込む<input type="file" id="loadJsonInput" accept="application/json" hidden></label>
+        <button type="button" id="btnCsv" class="btn-secondary" disabled>CSVで書き出し</button>
+        <button type="button" id="btnExcel" class="btn-secondary" disabled>Excelで保存(.xlsx)</button>
+        <button type="button" id="btnPrint" class="btn-primary" disabled>PDFで保存</button>
+      </div>
+      <p class="hint" id="saveHint"></p>
+      <p class="static-note" id="excelNote">Excelのテンプレートに書き出したい場合は、「入力データを保存(JSON)」で保存したファイルをそのままチャットに添付して「これをExcelテンプレートにして」と送ってください。Excel形式(.xlsx)の工程表を作ってお返しします。</p>
+    </div>
+  </section>
+
+  <section class="preview" aria-label="工程表プレビュー">
+    <div class="sheet card" id="sheet"></div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.8/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var WD = ['日','月','火','水','木','金','土'];
+  var CAT_RGB = {
+    1:[219,231,244], 2:[245,222,210], 3:[228,236,212], 4:[236,220,236],
+    5:[215,236,233], 6:[245,232,194], 7:[223,227,230], 8:[246,219,224]
+  };
+  var idSeq = Date.now();
+  function newId(){ return 'id' + (idSeq++); }
+
+  function todayISO(){ return isoOf(new Date()); }
+  function isoOf(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function parseDate(iso){ return new Date(iso + 'T00:00:00'); }
+  function addDaysIso(iso, n){ var d = parseDate(iso); d.setDate(d.getDate()+n); return isoOf(d); }
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function fmtDate(iso){
+    if(!iso) return '';
+    var d = parseDate(iso);
+    return d.getFullYear() + '/' + pad(d.getMonth()+1) + '/' + pad(d.getDate());
+  }
+  function fmtDateW(d){
+    return d.getFullYear() + '/' + pad(d.getMonth()+1) + '/' + pad(d.getDate()) + '(' + WD[d.getDay()] + ')';
+  }
+
+  function weekendClass(d){ var g=d.getDay(); return g===0?'sun':(g===6?'sat':''); }
+  function isToday(d){
+    var t = new Date();
+    return d.getFullYear()===t.getFullYear() && d.getMonth()===t.getMonth() && d.getDate()===t.getDate();
+  }
+
+  function defaultState(){
+    var start = todayISO();
+    return {
+      siteName:'◯◯ビル増築工事',
+      projectName:'外壁改修および設備更新工事',
+      siteRep:'',
+      designer:'',
+      createdDate:start,
+      startDate:start,
+      days:14,
+      remarks:'・雨天時は屋外作業を順延します\n・資材搬入は北側ゲートを使用してください',
+      trades:[
+        { id:newId(), name:'仮設工事', contractor:'◯◯建設(株)', color:1, tasks:[
+          { id:newId(), name:'足場組立', start:addDaysIso(start,0), end:addDaysIso(start,1) }
+        ]},
+        { id:newId(), name:'屋根工事', contractor:'△△工業(株)', color:2, tasks:[
+          { id:newId(), name:'屋根解体', start:addDaysIso(start,2), end:addDaysIso(start,3) },
+          { id:newId(), name:'屋根復旧', start:addDaysIso(start,6), end:addDaysIso(start,7) }
+        ]},
+        { id:newId(), name:'設備工事', contractor:'□□設備(有)', color:5, tasks:[
+          { id:newId(), name:'配管更新', start:addDaysIso(start,4), end:addDaysIso(start,8) }
+        ]},
+        { id:newId(), name:'電気工事', contractor:'××電設(株)', color:6, tasks:[
+          { id:newId(), name:'配線・盤交換', start:addDaysIso(start,8), end:addDaysIso(start,11) }
+        ]}
+      ]
+    };
+  }
+
+  function normalizeState(data){
+    var d = data || {};
+    return {
+      siteName:d.siteName || '',
+      projectName:d.projectName || '',
+      siteRep:d.siteRep || '',
+      designer:d.designer || '',
+      createdDate:d.createdDate || todayISO(),
+      startDate:d.startDate || todayISO(),
+      days:Math.max(1, Math.min(60, Number(d.days) || 14)),
+      remarks:d.remarks || '',
+      trades:Array.isArray(d.trades) ? d.trades.map(function(t){
+        return {
+          id:t.id || newId(),
+          name:t.name || '',
+          contractor:t.contractor || '',
+          color:(Number(t.color) >= 1 && Number(t.color) <= 8) ? Number(t.color) : 1,
+          tasks:Array.isArray(t.tasks) ? t.tasks.map(function(k){
+            return { id:k.id || newId(), name:k.name || '', start:k.start || '', end:k.end || '' };
+          }) : []
+        };
+      }) : []
+    };
+  }
+
+  var LS_KEY = 'koutei-builder-draft-v1';
+  function loadDraft(){
+    try{ var raw = localStorage.getItem(LS_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+    return null;
+  }
+  function saveDraft(){
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+  }
+
+  var draft = loadDraft();
+  var state = normalizeState(draft || defaultState());
+
+  function buildDays(){
+    var start = parseDate(state.startDate);
+    var arr = [];
+    for(var i=0;i<state.days;i++){
+      var d = new Date(start);
+      d.setDate(d.getDate()+i);
+      arr.push(d);
+    }
+    return arr;
+  }
+
+  function assignLanes(tasks, startDate, totalDays){
+    var parsed = (tasks || []).filter(function(t){ return t.name && t.start && t.end; }).map(function(t){
+      var s = parseDate(t.start), e = parseDate(t.end);
+      if(e < s){ var tmp=s; s=e; e=tmp; }
+      var startIdx = Math.round((s - startDate) / 86400000);
+      var endIdx = Math.round((e - startDate) / 86400000);
+      return { name:t.name, rawStart:t.start, rawEnd:t.end, startIdx:startIdx, endIdx:endIdx };
+    }).filter(function(t){ return t.endIdx >= 0 && t.startIdx <= totalDays-1; })
+      .map(function(t){ return Object.assign({}, t, { startIdx:Math.max(0,t.startIdx), endIdx:Math.min(totalDays-1,t.endIdx) }); })
+      .map(function(t){ return Object.assign({}, t, { span:t.endIdx-t.startIdx+1 }); })
+      .sort(function(a,b){ return a.startIdx-b.startIdx; });
+
+    var laneEnds = [];
+    var placed = parsed.map(function(t){
+      var lane = laneEnds.findIndex(function(end){ return end < t.startIdx; });
+      if(lane===-1){ lane = laneEnds.length; laneEnds.push(t.endIdx); }
+      else { laneEnds[lane] = t.endIdx; }
+      return Object.assign({}, t, { lane:lane });
+    });
+    return { laneCount:Math.max(1, laneEnds.length), placed:placed };
+  }
+
+  function renderTradeRows(trade, days){
+    var res = assignLanes(trade.tasks, days[0], days.length);
+    var laneCount = res.laneCount, placed = res.placed;
+    var rows = [];
+    for(var lane=0; lane<laneCount; lane++){
+      var laneTasks = placed.filter(function(p){ return p.lane===lane; }).sort(function(a,b){ return a.startIdx-b.startIdx; });
+      var cells = [];
+      var di=0, ti=0;
+      while(di<days.length){
+        var task = laneTasks[ti];
+        if(task && task.startIdx===di){
+          var barToday = false;
+          for(var k=task.startIdx;k<=task.endIdx;k++){ if(isToday(days[k])){ barToday=true; break; } }
+          cells.push('<td colspan="'+task.span+'" class="task-bar cat'+trade.color+(barToday?' bar-today':'')+'" title="'+esc(task.name)+' '+fmtDate(task.rawStart)+'〜'+fmtDate(task.rawEnd)+'">'+esc(task.name)+'</td>');
+          di += task.span; ti++;
+        } else {
+          var d = days[di];
+          var wd = weekendClass(d);
+          var tdy = isToday(d) ? ' today' : '';
+          cells.push('<td class="daycell '+wd+tdy+'"></td>');
+          di++;
+        }
+      }
+      var lead = lane===0
+        ? '<td class="col-trade" rowspan="'+laneCount+'" style="border-left:4px solid var(--cat'+trade.color+'-edge)">'+(esc(trade.name)||'（工種名未入力）')+'</td>'+
+          '<td class="col-contractor" rowspan="'+laneCount+'">'+(esc(trade.contractor)||'—')+'</td>'
+        : '';
+      var endClass = (lane===laneCount-1) ? ' trade-end' : '';
+      rows.push('<tr class="'+endClass.trim()+'">'+lead+cells.join('')+'</tr>');
+    }
+    return rows.join('');
+  }
+
+  function renderPreview(){
+    var days = buildDays();
+    var start = days[0], end = days[days.length-1];
+    var titleLabel = (state.days % 7 === 0) ? ('【'+(state.days/7)+'週間工程表】') : ('【工程表（'+state.days+'日間）】');
+    var totalTasks = state.trades.reduce(function(sum,t){ return sum + t.tasks.filter(function(k){ return k.name && k.start && k.end; }).length; }, 0);
+
+    var headCells = days.map(function(d){
+      var wd = weekendClass(d);
+      var tdy = isToday(d) ? ' today' : '';
+      return '<th class="daycol '+wd+tdy+'"><span class="d-num">'+(d.getMonth()+1)+'/'+d.getDate()+'</span><span class="d-wd">'+WD[d.getDay()]+'</span></th>';
+    }).join('');
+
+    var bodyRows = state.trades.length
+      ? state.trades.map(function(trade){ return renderTradeRows(trade, days); }).join('')
+      : '<tr><td class="empty-row" colspan="'+(2+days.length)+'">工種が登録されていません。左のパネルから追加してください。</td></tr>';
+
+    document.getElementById('sheet').innerHTML =
+      '<div class="sheet-title">'+titleLabel+'</div>'+
+      '<div class="meta-grid">'+
+        '<div class="meta"><span class="meta-k">現場名</span><span class="meta-v">'+(esc(state.siteName)||'—')+'</span></div>'+
+        '<div class="meta"><span class="meta-k">工事名</span><span class="meta-v">'+(esc(state.projectName)||'—')+'</span></div>'+
+        '<div class="meta"><span class="meta-k">現場代理人</span><span class="meta-v">'+(esc(state.siteRep)||'—')+'</span></div>'+
+        '<div class="meta"><span class="meta-k">設計担当</span><span class="meta-v">'+(esc(state.designer)||'—')+'</span></div>'+
+        '<div class="meta"><span class="meta-k">作成日</span><span class="meta-v">'+(fmtDate(state.createdDate)||'—')+'</span></div>'+
+      '</div>'+
+      '<div class="period-line">期間　'+fmtDateW(start)+' 〜 '+fmtDateW(end)+'　（'+state.days+'日間） <span class="dot">・</span> 工種 '+state.trades.length+'件 <span class="dot">・</span> 作業 '+totalTasks+'件</div>'+
+      '<div class="grid-scroll"><table class="gantt">'+
+        '<thead><tr class="date-row"><th class="col-trade">工種</th><th class="col-contractor">担当会社</th>'+headCells+'</tr></thead>'+
+        '<tbody>'+bodyRows+'</tbody>'+
+      '</table></div>'+
+      '<div class="remarks-block"><div class="remarks-label">備考</div><div class="remarks-body">'+(state.remarks ? esc(state.remarks).replace(/\n/g,'<br>') : '　')+'</div></div>';
+
+    saveDraft();
+  }
+
+  function buildPdfColumnStyles(numDays){
+    var styles = { 0:{ cellWidth:64 }, 1:{ cellWidth:72 } };
+    for(var i=0;i<numDays;i++){ styles[2+i] = { halign:'center' }; }
+    return styles;
+  }
+
+  function buildPdfBlob(){
+    if(!window.jspdf || !window.jspdf.jsPDF) return null;
+    var jsPDF = window.jspdf.jsPDF;
+    var days = buildDays();
+    var doc = new jsPDF({ orientation:'landscape', unit:'pt', format: days.length>21 ? 'a3' : 'a4' });
+    var pageWidth = doc.internal.pageSize.getWidth();
+    var marginX = 24;
+    var y = 32;
+
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(16);
+    var titleLabel = (state.days % 7 === 0) ? (state.days/7)+'週間工程表' : '工程表（'+state.days+'日間）';
+    doc.text(titleLabel, pageWidth/2, y, { align:'center' });
+    y += 20;
+
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(9);
+    doc.text('現場名: '+(state.siteName||'—')+'    工事名: '+(state.projectName||'—'), marginX, y);
+    y += 13;
+    doc.text('現場代理人: '+(state.siteRep||'—')+'    設計担当: '+(state.designer||'—')+'    作成日: '+(fmtDate(state.createdDate)||'—'), marginX, y);
+    y += 13;
+    doc.text('期間　'+fmtDateW(days[0])+' 〜 '+fmtDateW(days[days.length-1])+'　（'+state.days+'日間）', marginX, y);
+    y += 10;
+
+    var head = [['工種','担当会社'].concat(days.map(function(d){
+      return (d.getMonth()+1)+'/'+d.getDate()+'\n('+WD[d.getDay()]+')';
+    }))];
+
+    var body = [];
+    state.trades.forEach(function(trade){
+      var res = assignLanes(trade.tasks, days[0], days.length);
+      var laneCount = res.laneCount, placed = res.placed;
+      for(var lane=0; lane<laneCount; lane++){
+        var laneTasks = placed.filter(function(p){ return p.lane===lane; }).sort(function(a,b){ return a.startIdx-b.startIdx; });
+        var row = [];
+        if(lane===0){
+          row.push({ content: trade.name || '（工種名未入力）', rowSpan: laneCount, styles:{ halign:'center', valign:'middle', fontStyle:'bold' } });
+          row.push({ content: trade.contractor || '—', rowSpan: laneCount, styles:{ halign:'center', valign:'middle' } });
+        }
+        var di=0, ti=0;
+        while(di<days.length){
+          var task = laneTasks[ti];
+          if(task && task.startIdx===di){
+            var rgb = CAT_RGB[trade.color] || CAT_RGB[1];
+            row.push({ content: task.name, colSpan: task.span, styles:{ fillColor: rgb, halign:'left', fontSize:7 } });
+            di += task.span; ti++;
+          } else {
+            row.push('');
+            di++;
+          }
+        }
+        body.push(row);
+      }
+    });
+    if(!body.length){
+      body.push([{ content:'工種が登録されていません。', colSpan: 2+days.length, styles:{ halign:'center', textColor:[140,140,140] } }]);
+    }
+
+    doc.autoTable({
+      startY: y,
+      head: head,
+      body: body,
+      theme: 'grid',
+      styles: { font:'helvetica', fontSize:8, cellPadding:3, lineColor:[184,176,160], lineWidth:0.5, valign:'middle' },
+      headStyles: { fillColor:[47,93,138], textColor:[255,255,255], fontSize:8, halign:'center' },
+      columnStyles: buildPdfColumnStyles(days.length),
+      margin: { left: marginX, right: marginX },
+      didParseCell: function(data){
+        if(data.column.index < 2) return;
+        var d = days[data.column.index-2];
+        if(!d) return;
+        var wd = d.getDay();
+        if(data.section === 'head'){
+          if(wd===6) data.cell.styles.textColor = [191,224,247];
+          else if(wd===0) data.cell.styles.textColor = [250,199,188];
+        } else if(data.cell.raw === ''){
+          if(wd===6) data.cell.styles.fillColor = [223,234,246];
+          else if(wd===0) data.cell.styles.fillColor = [251,225,222];
+        }
+      }
+    });
+
+    var finalY = doc.lastAutoTable.finalY + 18;
+    if(state.remarks){
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(9);
+      doc.text('備考', marginX, finalY);
+      doc.setFont('helvetica','normal');
+      var lines = doc.splitTextToSize(state.remarks, pageWidth - marginX*2 - 40);
+      doc.text(lines, marginX + 40, finalY);
+    }
+
+    return doc.output('blob');
+  }
+
+  function hex2(n){ return ('0'+Math.max(0,Math.min(255,Math.round(n))).toString(16).toUpperCase()).slice(-2); }
+  function argbFromRgb(rgb){ return 'FF'+hex2(rgb[0])+hex2(rgb[1])+hex2(rgb[2]); }
+  var XLSX_HEADER_FILL = argbFromRgb([47,93,138]);
+  var XLSX_SAT_HEAD_TEXT = argbFromRgb([191,224,247]);
+  var XLSX_SUN_HEAD_TEXT = argbFromRgb([250,199,188]);
+  var XLSX_SAT_CELL_FILL = argbFromRgb([223,234,246]);
+  var XLSX_SUN_CELL_FILL = argbFromRgb([251,225,222]);
+  var XLSX_BORDER_COLOR = argbFromRgb([184,176,160]);
+  function xlsxBorder(){
+    var side = { style:'thin', color:{ argb:XLSX_BORDER_COLOR } };
+    return { top:side, left:side, bottom:side, right:side };
+  }
+
+  function buildXlsxBlob(){
+    if(!window.ExcelJS) return Promise.resolve(null);
+    var days = buildDays();
+    var numDays = days.length;
+    var lastCol = 2 + numDays;
+    var wb = new ExcelJS.Workbook();
+    wb.creator = '工程表ビルダー';
+    var ws = wb.addWorksheet('工程表', { views:[{ showGridLines:false }] });
+
+    ws.getColumn(1).width = 16;
+    ws.getColumn(2).width = 14;
+    for(var c=3;c<=lastCol;c++){ ws.getColumn(c).width = 4.6; }
+
+    var titleLabel = (state.days % 7 === 0) ? (state.days/7)+'週間工程表' : '工程表（'+state.days+'日間）';
+    ws.mergeCells(1,1,1,lastCol);
+    var titleCell = ws.getCell(1,1);
+    titleCell.value = titleLabel;
+    titleCell.font = { name:'Meiryo', size:16, bold:true };
+    titleCell.alignment = { horizontal:'center', vertical:'middle' };
+    ws.getRow(1).height = 26;
+
+    ws.mergeCells(2,1,2,lastCol);
+    var metaCell = ws.getCell(2,1);
+    metaCell.value = '現場名: '+(state.siteName||'—')+'　　工事名: '+(state.projectName||'—')+'　　現場代理人: '+(state.siteRep||'—')+'　　設計担当: '+(state.designer||'—')+'　　作成日: '+(fmtDate(state.createdDate)||'—');
+    metaCell.font = { name:'Meiryo', size:10 };
+    metaCell.alignment = { horizontal:'left', vertical:'middle' };
+    ws.getRow(2).height = 18;
+
+    var totalTasks = state.trades.reduce(function(s,t){ return s+t.tasks.length; }, 0);
+    ws.mergeCells(3,1,3,lastCol);
+    var periodCell = ws.getCell(3,1);
+    periodCell.value = '期間　'+fmtDateW(days[0])+' 〜 '+fmtDateW(days[days.length-1])+'　（'+state.days+'日間）　工種 '+state.trades.length+'件　作業 '+totalTasks+'件';
+    periodCell.font = { name:'Meiryo', size:10 };
+    periodCell.alignment = { horizontal:'left', vertical:'middle' };
+    ws.getRow(3).height = 18;
+
+    var headerRow = 4;
+    ws.getRow(headerRow).height = 28;
+    var hc1 = ws.getCell(headerRow,1); hc1.value = '工種';
+    var hc2 = ws.getCell(headerRow,2); hc2.value = '担当会社';
+    [hc1,hc2].forEach(function(cell){
+      cell.font = { name:'Meiryo', size:10, bold:true, color:{argb:'FFFFFFFF'} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_HEADER_FILL} };
+      cell.alignment = { horizontal:'center', vertical:'middle' };
+      cell.border = xlsxBorder();
+    });
+    days.forEach(function(d, i){
+      var cell = ws.getCell(headerRow, 3+i);
+      cell.value = (d.getMonth()+1)+'/'+d.getDate()+'\n('+WD[d.getDay()]+')';
+      var wd = d.getDay();
+      var textColor = 'FFFFFFFF';
+      if(wd===6) textColor = XLSX_SAT_HEAD_TEXT;
+      else if(wd===0) textColor = XLSX_SUN_HEAD_TEXT;
+      cell.font = { name:'Meiryo', size:8, bold:true, color:{argb:textColor} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_HEADER_FILL} };
+      cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+      cell.border = xlsxBorder();
+    });
+
+    var r = headerRow + 1;
+    if(!state.trades.length){
+      ws.mergeCells(r,1,r,lastCol);
+      var emptyCell = ws.getCell(r,1);
+      emptyCell.value = '工種が登録されていません。';
+      emptyCell.alignment = { horizontal:'center', vertical:'middle' };
+      emptyCell.font = { name:'Meiryo', size:10, color:{argb:'FF8C8C8C'} };
+      r++;
+    } else {
+      state.trades.forEach(function(trade){
+        var res = assignLanes(trade.tasks, days[0], days.length);
+        var laneCount = res.laneCount, placed = res.placed;
+        var tradeStartRow = r;
+        for(var lane=0; lane<laneCount; lane++){
+          var rowIdx = r + lane;
+          ws.getRow(rowIdx).height = 20;
+          var laneTasks = placed.filter(function(p){ return p.lane===lane; }).sort(function(a,b){ return a.startIdx-b.startIdx; });
+          var di = 0, ti = 0;
+          while(di < days.length){
+            var task = laneTasks[ti];
+            if(task && task.startIdx===di){
+              var startCol = 3+di, endCol = 3+di+task.span-1;
+              if(task.span>1) ws.mergeCells(rowIdx,startCol,rowIdx,endCol);
+              var rgb = CAT_RGB[trade.color] || CAT_RGB[1];
+              for(var cc=startCol; cc<=endCol; cc++){
+                var partCell = ws.getCell(rowIdx,cc);
+                partCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:argbFromRgb(rgb)} };
+                partCell.border = xlsxBorder();
+              }
+              var tcell = ws.getCell(rowIdx,startCol);
+              tcell.value = task.name || '';
+              tcell.font = { name:'Meiryo', size:8 };
+              tcell.alignment = { horizontal:'left', vertical:'middle', indent:1 };
+              di += task.span; ti++;
+            } else {
+              var dcell = ws.getCell(rowIdx, 3+di);
+              var wd2 = days[di].getDay();
+              if(wd2===6) dcell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_SAT_CELL_FILL} };
+              else if(wd2===0) dcell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_SUN_CELL_FILL} };
+              dcell.border = xlsxBorder();
+              di++;
+            }
+          }
+        }
+        ws.mergeCells(tradeStartRow,1,tradeStartRow+laneCount-1,1);
+        ws.mergeCells(tradeStartRow,2,tradeStartRow+laneCount-1,2);
+        for(var lr=tradeStartRow; lr<tradeStartRow+laneCount; lr++){
+          ws.getCell(lr,1).border = xlsxBorder();
+          ws.getCell(lr,2).border = xlsxBorder();
+        }
+        var nameCell = ws.getCell(tradeStartRow,1);
+        nameCell.value = trade.name || '（工種名未入力）';
+        nameCell.font = { name:'Meiryo', size:9, bold:true };
+        nameCell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+        var contCell = ws.getCell(tradeStartRow,2);
+        contCell.value = trade.contractor || '—';
+        contCell.font = { name:'Meiryo', size:9 };
+        contCell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+        r += laneCount;
+      });
+    }
+
+    if(state.remarks){
+      r++;
+      ws.mergeCells(r,1,r,lastCol);
+      var remCell = ws.getCell(r,1);
+      remCell.value = '備考：'+state.remarks;
+      remCell.font = { name:'Meiryo', size:9 };
+      remCell.alignment = { horizontal:'left', vertical:'middle', wrapText:true };
+      ws.getRow(r).height = 30;
+    }
+
+    ws.pageSetup = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, horizontalCentered:true };
+
+    return wb.xlsx.writeBuffer().then(function(buffer){
+      return new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    });
+  }
+
+  function renderTrades(){
+    var html = state.trades.map(function(trade){
+      var swatches = [1,2,3,4,5,6,7,8].map(function(n){
+        return '<button type="button" class="swatch cat'+n+(n===trade.color?' selected':'')+'" data-action="set-color" data-trade="'+trade.id+'" data-color="'+n+'" aria-label="色'+n+'"></button>';
+      }).join('');
+      var tasks = trade.tasks.map(function(task){
+        return '<div class="task-row">'+
+          '<input type="text" class="task-name" data-field="task-name" data-trade="'+trade.id+'" data-task="'+task.id+'" value="'+esc(task.name)+'" placeholder="作業名">'+
+          '<input type="date" class="task-date" data-field="task-start" data-trade="'+trade.id+'" data-task="'+task.id+'" value="'+esc(task.start)+'">'+
+          '<span class="tilde">〜</span>'+
+          '<input type="date" class="task-date" data-field="task-end" data-trade="'+trade.id+'" data-task="'+task.id+'" value="'+esc(task.end)+'">'+
+          '<button type="button" class="icon-btn" data-action="remove-task" data-trade="'+trade.id+'" data-task="'+task.id+'" aria-label="この作業を削除">✕</button>'+
+        '</div>';
+      }).join('');
+      return '<div class="trade-card">'+
+        '<div class="trade-row">'+
+          '<input type="text" class="trade-name" data-field="name" data-trade="'+trade.id+'" value="'+esc(trade.name)+'" placeholder="工種名（例：屋根工事）">'+
+          '<input type="text" class="trade-contractor" data-field="contractor" data-trade="'+trade.id+'" value="'+esc(trade.contractor)+'" placeholder="担当会社">'+
+          '<button type="button" class="icon-btn" data-action="remove-trade" data-trade="'+trade.id+'" aria-label="この工種を削除">✕</button>'+
+        '</div>'+
+        '<div class="swatches" role="group" aria-label="表示色を選択">'+swatches+'</div>'+
+        '<div class="tasks">'+tasks+'</div>'+
+        '<button type="button" class="btn-ghost small" data-action="add-task" data-trade="'+trade.id+'">+ 作業を追加</button>'+
+      '</div>';
+    }).join('');
+    document.getElementById('tradesList').innerHTML = html || '<p class="empty-hint">工種がまだありません。「+ 工種を追加」から始めましょう。</p>';
+  }
+
+  function hydrateForm(){
+    document.getElementById('f-siteName').value = state.siteName || '';
+    document.getElementById('f-projectName').value = state.projectName || '';
+    document.getElementById('f-siteRep').value = state.siteRep || '';
+    document.getElementById('f-designer').value = state.designer || '';
+    document.getElementById('f-createdDate').value = state.createdDate || '';
+    document.getElementById('f-startDate').value = state.startDate || '';
+    document.getElementById('f-days').value = state.days || 14;
+    document.getElementById('f-remarks').value = state.remarks || '';
+  }
+
+  function addTrade(){
+    var color = (state.trades.length % 8) + 1;
+    var trade = { id:newId(), name:'', contractor:'', color:color, tasks:[{ id:newId(), name:'', start:'', end:'' }] };
+    state.trades.push(trade);
+    renderTrades(); renderPreview();
+    var el = document.querySelector('.trade-name[data-trade="'+trade.id+'"]');
+    if(el) el.focus();
+  }
+  function removeTrade(id){
+    state.trades = state.trades.filter(function(t){ return t.id!==id; });
+    renderTrades(); renderPreview();
+  }
+  function addTask(tradeId){
+    var trade = state.trades.find(function(t){ return t.id===tradeId; });
+    if(!trade) return;
+    var task = { id:newId(), name:'', start:'', end:'' };
+    trade.tasks.push(task);
+    renderTrades(); renderPreview();
+    var el = document.querySelector('.task-name[data-task="'+task.id+'"]');
+    if(el) el.focus();
+  }
+  function removeTask(tradeId, taskId){
+    var trade = state.trades.find(function(t){ return t.id===tradeId; });
+    if(!trade) return;
+    trade.tasks = trade.tasks.filter(function(t){ return t.id!==taskId; });
+    renderTrades(); renderPreview();
+  }
+  function setColor(tradeId, color){
+    var trade = state.trades.find(function(t){ return t.id===tradeId; });
+    if(!trade) return;
+    trade.color = color;
+    renderTrades(); renderPreview();
+  }
+
+  function bindStatic(id, key, transform){
+    var el = document.getElementById(id);
+    el.addEventListener('input', function(){
+      state[key] = transform ? transform(el.value) : el.value;
+      renderPreview();
+    });
+  }
+
+  function buildCsv(){
+    var rows = [['工種','担当会社','作業名','開始日','終了日']];
+    state.trades.forEach(function(trade){
+      if(!trade.tasks.length){
+        rows.push([trade.name, trade.contractor, '', '', '']);
+      } else {
+        trade.tasks.forEach(function(task){
+          rows.push([trade.name, trade.contractor, task.name, task.start, task.end]);
+        });
+      }
+    });
+    var body = rows.map(function(r){ return r.map(csvCell).join(','); }).join('\r\n');
+    return '﻿' + body;
+  }
+  function csvCell(v){
+    var s = String(v == null ? '' : v);
+    if(/[",\r\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  }
+
+  function saveErrorMessage(err){
+    var code = err && err.code;
+    switch(code){
+      case 'declined': return '保存をキャンセルしました。';
+      case 'too_large': return 'データが大きすぎて保存できませんでした。';
+      case 'rate_limited': return '少し時間をおいてから、もう一度お試しください。';
+      default: return 'この画面では保存機能を利用できませんでした。';
+    }
+  }
+
+  var hintTimer = null;
+  function flashHint(msg){
+    var el = document.getElementById('saveHint');
+    el.textContent = msg;
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(function(){ el.textContent=''; }, 4500);
+  }
+
+  // ---- wire up static fields ----
+  bindStatic('f-siteName','siteName');
+  bindStatic('f-projectName','projectName');
+  bindStatic('f-siteRep','siteRep');
+  bindStatic('f-designer','designer');
+  bindStatic('f-createdDate','createdDate');
+  bindStatic('f-startDate','startDate');
+  bindStatic('f-days','days', function(v){ return Math.max(1, Math.min(60, Number(v) || 14)); });
+  bindStatic('f-remarks','remarks');
+
+  document.querySelectorAll('[data-weeks]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      state.days = Number(btn.dataset.weeks);
+      document.getElementById('f-days').value = state.days;
+      renderPreview();
+    });
+  });
+
+  document.getElementById('addTradeBtn').addEventListener('click', addTrade);
+
+  document.getElementById('tradesList').addEventListener('click', function(e){
+    var btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    var action = btn.dataset.action, tradeId = btn.dataset.trade;
+    if(action==='remove-trade') removeTrade(tradeId);
+    else if(action==='add-task') addTask(tradeId);
+    else if(action==='remove-task') removeTask(tradeId, btn.dataset.task);
+    else if(action==='set-color') setColor(tradeId, Number(btn.dataset.color));
+  });
+
+  document.getElementById('tradesList').addEventListener('input', function(e){
+    var el = e.target, field = el.dataset.field;
+    if(!field) return;
+    var trade = state.trades.find(function(t){ return t.id===el.dataset.trade; });
+    if(!trade) return;
+    if(field==='name') trade.name = el.value;
+    else if(field==='contractor') trade.contractor = el.value;
+    else {
+      var task = trade.tasks.find(function(t){ return t.id===el.dataset.task; });
+      if(!task) return;
+      if(field==='task-name') task.name = el.value;
+      else if(field==='task-start') task.start = el.value;
+      else if(field==='task-end') task.end = el.value;
+    }
+    renderPreview();
+  });
+
+  document.getElementById('btnPrint').addEventListener('click', function(){
+    var blob;
+    try{
+      blob = buildPdfBlob();
+    }catch(e){
+      flashHint('PDFの作成に失敗しました。'); return;
+    }
+    if(!blob){ flashHint('PDF機能を読み込めませんでした。時間をおいて再度お試しください。'); return; }
+    saveFile('工程表_'+(state.siteName||'現場')+'.pdf', blob, 'application/pdf')
+      .then(function(){ flashHint('PDFを保存しました。'); })
+      .catch(function(err){ flashHint(saveErrorMessage(err)); });
+  });
+
+  document.getElementById('btnExcel').addEventListener('click', function(){
+    if(inClaudeViewer){ flashHint('この画面ではExcel保存は利用できません。ページを配信環境（Vercelなど）に公開すると使えます。'); return; }
+    if(!window.ExcelJS){ flashHint('Excel機能を読み込めませんでした。時間をおいて再度お試しください。'); return; }
+    Promise.resolve().then(buildXlsxBlob).then(function(blob){
+      if(!blob) throw { code:'unavailable' };
+      return saveFile('工程表_'+(state.siteName||'現場')+'.xlsx', blob, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }).then(function(){ flashHint('Excelファイルを保存しました。'); })
+      .catch(function(err){ flashHint(err && err.code ? saveErrorMessage(err) : 'Excelファイルの作成に失敗しました。'); });
+  });
+
+  document.getElementById('loadJsonInput').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var data = JSON.parse(String(reader.result));
+        if(!data || !Array.isArray(data.trades)) throw new Error('invalid');
+        state = normalizeState(data);
+        hydrateForm(); renderTrades(); renderPreview();
+        flashHint('読み込みました。');
+      }catch(err){
+        flashHint('ファイルを読み込めませんでした。形式をご確認ください。');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  var inClaudeViewer = !!(window.claude && typeof window.claude.use === 'function');
+  var downloadsApi = null;
+
+  // saveFile(): unified save path. Inside the Claude artifact viewer it goes
+  // through the sandboxed `downloads` capability (the only way a file can
+  // reach the user there). Once this page is deployed on its own (Vercel,
+  // GitHub Pages, etc.) — where inClaudeViewer is false — it falls back to a
+  // normal Blob + <a download> click, which works fine outside the sandbox.
+  function saveFile(filename, data, mime){
+    if(downloadsApi){
+      return downloadsApi.save({ filename:filename, data:data });
+    }
+    if(inClaudeViewer){
+      return Promise.reject({ code:'unavailable' });
+    }
+    return new Promise(function(resolve, reject){
+      try{
+        var blob = (data instanceof Blob) ? data : new Blob([data], { type: mime || 'application/octet-stream' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+        resolve({ status:'saved' });
+      }catch(e){ reject(e); }
+    });
+  }
+
+  function updateActionAvailability(){
+    var avail = !!downloadsApi || !inClaudeViewer;
+    document.getElementById('btnSaveJson').disabled = !avail;
+    document.getElementById('btnCsv').disabled = !avail;
+    document.getElementById('btnPrint').disabled = !avail;
+    document.getElementById('btnExcel').disabled = inClaudeViewer;
+    if(inClaudeViewer){
+      document.getElementById('excelNote').textContent = 'Excel(.xlsx)で直接保存したい場合は、「入力データを保存(JSON)」で保存したファイルをそのままチャットに添付して「これをExcelテンプレートにして」と送ってください。このアプリをGitHub+Vercelなどに公開すると、「Excelで保存」ボタンからブラウザで直接.xlsxを保存できます。';
+      if(!avail) document.getElementById('saveHint').textContent = 'この画面では保存機能を利用できない場合があります。読み込みは引き続きご利用いただけます。';
+    } else {
+      document.getElementById('excelNote').textContent = 'このページは独立した環境で動作しています。「Excelで保存」ボタンからブラウザに直接.xlsxファイルを保存できます。';
+    }
+  }
+  (function(){
+    try{
+      if(inClaudeViewer){
+        window.claude.use('downloads').then(function(api){
+          downloadsApi = api;
+          updateActionAvailability();
+        }).catch(function(){ downloadsApi = null; updateActionAvailability(); });
+      }
+      updateActionAvailability();
+    }catch(e){ updateActionAvailability(); }
+  })();
+
+  document.getElementById('btnSaveJson').addEventListener('click', function(){
+    saveFile('工程表データ_'+(state.siteName||'現場')+'.json', JSON.stringify(state,null,2), 'application/json')
+      .then(function(){ flashHint('保存しました。'); })
+      .catch(function(err){ flashHint(saveErrorMessage(err)); });
+  });
+
+  document.getElementById('btnCsv').addEventListener('click', function(){
+    saveFile('工程表_'+(state.siteName||'現場')+'.csv', buildCsv(), 'text/csv;charset=utf-8')
+      .then(function(){ flashHint('保存しました。'); })
+      .catch(function(err){ flashHint(saveErrorMessage(err)); });
+  });
+
+  // ---- init ----
+  hydrateForm();
+  renderTrades();
+  renderPreview();
+})();
+</script>
