@@ -114,7 +114,12 @@ button{ font-family:inherit; }
 @media (max-width:600px){
   .topbar{ padding:18px 14px 6px; }
   .shell{ padding:12px 14px 40px; gap:16px; }
-  .card{ padding:14px 14px 16px; border-radius:10px; }
+  .card{ padding:12px 14px 14px; border-radius:10px; }
+  .card + .card{ margin-top:10px; }
+  .card h2{ margin-bottom:8px; }
+  .field-grid{ gap:8px; }
+  .trade-card{ padding:10px 0; }
+  .swatches{ margin-bottom:8px; }
 }
 
 .card{ background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 18px 20px; }
@@ -187,9 +192,19 @@ textarea{ resize:vertical; font-family:inherit; }
 .hint{ margin:10px 0 0; font-size:12.5px; color:var(--ink-soft); min-height:16px; }
 .static-note{ margin:10px 0 0; padding-top:10px; border-top:1px dashed var(--border); font-size:12px; color:var(--ink-faint); line-height:1.6; }
 
-.preview{ min-width:0; position:sticky; top:16px; align-self:start; max-height:calc(100vh - 32px); overflow-y:auto; }
-@media (max-width:980px){ .preview{ position:static; max-height:none; overflow-y:visible; } }
-.sheet{ padding:22px; }
+/* The sticky positioning lives on .preview; the scroll/clip (max-height +
+   overflow) lives on .sheet inside it. Putting both on one element triggers
+   a Chromium paint bug where content near the clip edge silently loses its
+   background and shows whatever is scrolling underneath through it. */
+.preview{ min-width:0; position:sticky; top:16px; align-self:start; }
+.sheet{ padding:22px; max-height:calc(100vh - 32px); overflow-y:auto; }
+@media (max-width:980px){
+  /* Preview pinned to roughly the upper half of the screen, with the input
+     form scrolling underneath it — editing without losing sight of the result. */
+  .panel{ order:2; }
+  .preview{ order:1; top:0; margin:0 0 10px; background:var(--bg); padding-bottom:6px; box-shadow:0 6px 12px -6px rgba(0,0,0,.18); z-index:5; }
+  .sheet{ max-height:50vh; overflow-y:auto; }
+}
 @media (max-width:600px){ .sheet{ padding:14px; } }
 .sheet-title{ font-family:'Zen Kaku Gothic New',sans-serif; font-size:19px; font-weight:700; text-align:center; margin-bottom:14px; letter-spacing:.02em; }
 .meta-grid{ display:grid; grid-template-columns:1.3fr 1.6fr 1fr 1fr 1.1fr 1.3fr; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
