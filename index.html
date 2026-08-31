@@ -620,9 +620,11 @@
       var tasks = trade.tasks.map(function(task){
         return '<div class="task-row">'+
           '<input type="text" class="task-name" data-field="task-name" data-trade="'+trade.id+'" data-task="'+task.id+'" value="'+esc(task.name)+'" placeholder="作業名">'+
-          '<input type="date" class="task-date" data-field="task-start" data-trade="'+trade.id+'" data-task="'+task.id+'" value="'+esc(task.start)+'">'+
-          '<span class="tilde">〜</span>'+
-          '<input type="date" class="task-date" data-field="task-end" data-trade="'+trade.id+'" data-task="'+task.id+'" value="'+esc(task.end)+'">'+
+          '<div class="task-dates">'+
+            '<input type="date" class="task-date" data-field="task-start" data-trade="'+trade.id+'" data-task="'+task.id+'" value="'+esc(task.start)+'">'+
+            '<span class="tilde">〜</span>'+
+            '<input type="date" class="task-date" data-field="task-end" data-trade="'+trade.id+'" data-task="'+task.id+'" value="'+esc(task.end)+'">'+
+          '</div>'+
           '<button type="button" class="icon-btn" data-action="remove-task" data-trade="'+trade.id+'" data-task="'+task.id+'" aria-label="この作業を削除">✕</button>'+
         '</div>';
       }).join('');

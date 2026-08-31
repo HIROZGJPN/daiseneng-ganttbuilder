@@ -130,15 +130,24 @@ button{ font-family:inherit; }
 
 .field-grid{ display:grid; grid-template-columns:1fr; gap:12px; }
 .field-grid.two{ grid-template-columns:1fr 1fr; }
-label{ display:flex; flex-direction:column; gap:5px; font-size:12.5px; color:var(--ink-soft); font-weight:500; }
+label{ display:flex; flex-direction:column; gap:5px; font-size:12.5px; color:var(--ink-soft); font-weight:500; min-width:0; }
+@media (max-width:480px){
+  /* Native date pickers have a locale-dependent minimum width that can
+     exceed half the row on narrow phones, overlapping the field beside it. */
+  .field-grid.two{ grid-template-columns:1fr; }
+}
 input[type=text],input[type=date],input[type=number],textarea{
   font:inherit; color:var(--ink); background:var(--surface-alt); border:1px solid var(--border); border-radius:7px; padding:8px 10px; width:100%;
 }
+/* Native date/number controls render at a different intrinsic height than a
+   plain text input in some browsers — pin them all to the same height. */
+input[type=text],input[type=date],input[type=number]{ height:38px; }
 input:focus,textarea:focus,button:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
 textarea{ resize:vertical; font-family:inherit; }
 @media (max-width:600px){
   /* 16px+ keeps iOS Safari from auto-zooming the page when a field is focused. */
   input[type=text],input[type=date],input[type=number],textarea{ font-size:16px; padding:10px 12px; }
+  input[type=text],input[type=date],input[type=number]{ height:44px; }
 }
 
 .preset-row{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
@@ -171,15 +180,20 @@ textarea{ resize:vertical; font-family:inherit; }
 .tasks{ display:flex; flex-direction:column; gap:8px; margin-bottom:8px; }
 .task-row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .task-name{ flex:1 1 42%; }
+.task-dates{ display:flex; align-items:center; gap:6px; flex:2 1 0; min-width:0; }
 .task-date{ flex:1 1 auto; min-width:0; }
-.tilde{ color:var(--ink-faint); font-size:12px; }
+.tilde{ color:var(--ink-faint); font-size:12px; flex:0 0 auto; }
 .empty-hint{ color:var(--ink-faint); font-size:13px; margin:0; }
 
 @media (max-width:600px){
   .trade-row{ flex-wrap:wrap; }
   .trade-name,.trade-contractor{ flex:1 1 100%; }
   .task-name{ flex:1 1 100%; }
-  .task-date{ flex:1 1 calc(50% - 20px); }
+  /* Keep 開始日〜終了日 on one line: fixed-width dates in a non-wrapping row
+     that scrolls horizontally on its own if a device's native date picker
+     needs more room than the screen has, instead of breaking onto two lines. */
+  .task-dates{ flex:1 1 100%; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .task-dates .task-date{ flex:0 0 auto; width:150px; }
   .icon-btn{ width:36px; height:36px; font-size:14px; }
   .swatch{ width:28px; height:28px; }
 }
