@@ -55,14 +55,12 @@
     <div class="card actions-card">
       <h2>保存・出力</h2>
       <div class="actions-row">
-        <button type="button" id="btnSaveJson" class="btn-secondary" disabled>入力データを保存(JSON)</button>
         <label class="btn-secondary file-btn">入力データを読み込む<input type="file" id="loadJsonInput" accept="application/json" hidden></label>
-        <button type="button" id="btnCsv" class="btn-secondary" disabled>CSVで書き出し</button>
+        <label class="hint-check"><input type="checkbox" id="f-includeContractor" checked>担当会社を含める</label>
         <button type="button" id="btnExcel" class="btn-secondary" disabled>Excelで保存(.xlsx)</button>
         <button type="button" id="btnPrint" class="btn-primary" disabled>PDFで保存</button>
       </div>
       <p class="hint" id="saveHint"></p>
-      <p class="static-note" id="excelNote">Excelのテンプレートに書き出したい場合は、「入力データを保存(JSON)」で保存したファイルをそのままチャットに添付して「これをExcelテンプレートにして」と送ってください。Excel形式(.xlsx)の工程表を作ってお返しします。</p>
     </div>
   </section>
 
@@ -361,19 +359,23 @@
     return bounds;
   }
 
-  function buildXlsxBlob(){
+  function buildXlsxBlob(includeContractor){
     if(!window.ExcelJS) return Promise.resolve(null);
     var days = buildDays();
     var numDays = days.length;
-    var lastCol = 2 + numDays;
+    // 担当会社 column is optional: when omitted, 工種 alone occupies column A
+    // and the day columns start one column earlier.
+    var nameCols = includeContractor ? 2 : 1;
+    var dayStartCol = nameCols + 1;
+    var lastCol = nameCols + numDays;
     var wb = new ExcelJS.Workbook();
     wb.creator = '工程表ビルダー';
     var ws = wb.addWorksheet('工程表', { views:[{ showGridLines:false }] });
 
     ws.properties.defaultRowHeight = 18.75;
     ws.getColumn(1).width = 16;
-    ws.getColumn(2).width = 14;
-    for(var c=3;c<=lastCol;c++){ ws.getColumn(c).width = 7.625; }
+    if(includeContractor) ws.getColumn(2).width = 14;
+    for(var c=dayStartCol;c<=lastCol;c++){ ws.getColumn(c).width = 7.625; }
 
     // 現場情報: mirrors the preview's meta-grid — one bordered label+value box per field.
     // 現場名 is pinned to columns A:B (matching the 工種/担当会社 columns below);
@@ -402,22 +404,22 @@
       xlsxBorderRange(ws, metaLabelRow, c1, metaValueRow, c2);
     }
 
-    metaBox(1, 2, '現場名', state.siteName||'—', 'left');
-    var restBounds = splitColumnsByWeight(lastCol-2, [6,2,2,4]);
+    metaBox(1, nameCols, '現場名', state.siteName||'—', 'left');
+    var restBounds = splitColumnsByWeight(lastCol-nameCols, [6,2,2,4]);
     var restDefs = [
       ['工事名', state.projectName||'—', 'left'],
       ['現場代理人', state.siteRep||'—', 'center'],
       ['設計担当', state.designer||'—', 'center']
     ];
     restDefs.forEach(function(def, i){
-      metaBox(2+restBounds[i]+1, 2+restBounds[i+1], def[0], def[1], def[2]);
+      metaBox(nameCols+restBounds[i]+1, nameCols+restBounds[i+1], def[0], def[1], def[2]);
     });
 
     // 作成日・会社名: this box's top row is split in two (a narrow "作成日"
     // caption cell, then the date itself sits beside it), while the bottom
     // row merges across the whole width for the company name.
     (function(){
-      var c1 = 2+restBounds[3]+1, c2 = 2+restBounds[4];
+      var c1 = nameCols+restBounds[3]+1, c2 = nameCols+restBounds[4];
       var labelCell = ws.getCell(metaLabelRow,c1);
       labelCell.value = '作成日';
       labelCell.font = { name:XLSX_FONT, size:10, color:{argb:'FF8C8C8C'} };
@@ -459,15 +461,19 @@
     var headerRow = 4;
     ws.getRow(headerRow).height = 27.95;
     var hc1 = ws.getCell(headerRow,1); hc1.value = '工種';
-    var hc2 = ws.getCell(headerRow,2); hc2.value = '担当会社';
-    [hc1,hc2].forEach(function(cell){
+    var headerLeadCells = [hc1];
+    if(includeContractor){
+      var hc2 = ws.getCell(headerRow,2); hc2.value = '担当会社';
+      headerLeadCells.push(hc2);
+    }
+    headerLeadCells.forEach(function(cell){
       cell.font = { name:XLSX_FONT, size:10, bold:true };
       cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_HEADER_FILL} };
       cell.alignment = { horizontal:'center', vertical:'middle' };
       cell.border = xlsxBorder();
     });
     days.forEach(function(d, i){
-      var cell = ws.getCell(headerRow, 3+i);
+      var cell = ws.getCell(headerRow, dayStartCol+i);
       cell.value = (d.getMonth()+1)+'/'+d.getDate()+'\n('+WD[d.getDay()]+')';
       cell.font = { name:XLSX_FONT, size:8, bold:true };
       cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_HEADER_FILL} };
@@ -511,7 +517,7 @@
           days.forEach(function(d, di){
             var fill = weekendFill(d.getDay());
             [padTopRow, taskRow, padBottomRow].forEach(function(rowIdx){
-              var cell = ws.getCell(rowIdx, 3+di);
+              var cell = ws.getCell(rowIdx, dayStartCol+di);
               cell.border = xlsxBorder(rowSides[rowIdx]);
               cell.font = { name:XLSX_FONT };
               if(fill) cell.fill = fill;
@@ -523,7 +529,7 @@
           while(di < days.length){
             var task = laneTasks[ti];
             if(task && task.startIdx===di){
-              var startCol = 3+di, endCol = 3+di+task.span-1;
+              var startCol = dayStartCol+di, endCol = dayStartCol+di+task.span-1;
               if(task.span>1) ws.mergeCells(taskRow,startCol,taskRow,endCol);
               for(var cc=startCol; cc<=endCol; cc++){
                 ws.getCell(taskRow,cc).fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_TASK_FILL} };
@@ -540,19 +546,19 @@
         }
         var tradeEndRow = tradeStartRow + laneCount*ROWS_PER_LANE - 1;
         ws.mergeCells(tradeStartRow,1,tradeEndRow,1);
-        ws.mergeCells(tradeStartRow,2,tradeEndRow,2);
-        for(var lr=tradeStartRow; lr<=tradeEndRow; lr++){
-          ws.getCell(lr,1).border = xlsxBorder();
-          ws.getCell(lr,2).border = xlsxBorder();
-        }
+        for(var lr=tradeStartRow; lr<=tradeEndRow; lr++){ ws.getCell(lr,1).border = xlsxBorder(); }
         var nameCell = ws.getCell(tradeStartRow,1);
         nameCell.value = trade.name || '（工種名未入力）';
         nameCell.font = { name:XLSX_FONT, size:10, bold:true };
         nameCell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
-        var contCell = ws.getCell(tradeStartRow,2);
-        contCell.value = trade.contractor || '—';
-        contCell.font = { name:XLSX_FONT, size:10 };
-        contCell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+        if(includeContractor){
+          ws.mergeCells(tradeStartRow,2,tradeEndRow,2);
+          for(var lr2=tradeStartRow; lr2<=tradeEndRow; lr2++){ ws.getCell(lr2,2).border = xlsxBorder(); }
+          var contCell = ws.getCell(tradeStartRow,2);
+          contCell.value = trade.contractor || '—';
+          contCell.font = { name:XLSX_FONT, size:10 };
+          contCell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+        }
         r += laneCount*ROWS_PER_LANE;
       });
     }
@@ -681,26 +687,6 @@
     });
   }
 
-  function buildCsv(){
-    var rows = [['工種','担当会社','作業名','開始日','終了日']];
-    state.trades.forEach(function(trade){
-      if(!trade.tasks.length){
-        rows.push([trade.name, trade.contractor, '', '', '']);
-      } else {
-        trade.tasks.forEach(function(task){
-          rows.push([trade.name, trade.contractor, task.name, task.start, task.end]);
-        });
-      }
-    });
-    var body = rows.map(function(r){ return r.map(csvCell).join(','); }).join('\r\n');
-    return '﻿' + body;
-  }
-  function csvCell(v){
-    var s = String(v == null ? '' : v);
-    if(/[",\r\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
-    return s;
-  }
-
   function saveErrorMessage(err){
     var code = err && err.code;
     switch(code){
@@ -782,7 +768,8 @@
   document.getElementById('btnExcel').addEventListener('click', function(){
     if(inClaudeViewer){ flashHint('この画面ではExcel保存は利用できません。ページを配信環境（Vercelなど）に公開すると使えます。'); return; }
     if(!window.ExcelJS){ flashHint('Excel機能を読み込めませんでした。時間をおいて再度お試しください。'); return; }
-    Promise.resolve().then(buildXlsxBlob).then(function(blob){
+    var includeContractor = document.getElementById('f-includeContractor').checked;
+    Promise.resolve().then(function(){ return buildXlsxBlob(includeContractor); }).then(function(blob){
       if(!blob) throw { code:'unavailable' };
       return saveFile('工程表_'+(state.siteName||'現場')+'.xlsx', blob, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }).then(function(){ flashHint('Excelファイルを保存しました。'); })
@@ -840,15 +827,10 @@
 
   function updateActionAvailability(){
     var avail = !!downloadsApi || !inClaudeViewer;
-    document.getElementById('btnSaveJson').disabled = !avail;
-    document.getElementById('btnCsv').disabled = !avail;
     document.getElementById('btnPrint').disabled = !avail;
     document.getElementById('btnExcel').disabled = inClaudeViewer;
-    if(inClaudeViewer){
-      document.getElementById('excelNote').textContent = 'Excel(.xlsx)で直接保存したい場合は、「入力データを保存(JSON)」で保存したファイルをそのままチャットに添付して「これをExcelテンプレートにして」と送ってください。このアプリをGitHub+Vercelなどに公開すると、「Excelで保存」ボタンからブラウザで直接.xlsxを保存できます。';
-      if(!avail) document.getElementById('saveHint').textContent = 'この画面では保存機能を利用できない場合があります。読み込みは引き続きご利用いただけます。';
-    } else {
-      document.getElementById('excelNote').textContent = 'このページは独立した環境で動作しています。「Excelで保存」ボタンからブラウザに直接.xlsxファイルを保存できます。';
+    if(inClaudeViewer && !avail){
+      document.getElementById('saveHint').textContent = 'この画面では保存機能を利用できない場合があります。読み込みは引き続きご利用いただけます。';
     }
   }
   (function(){
@@ -862,18 +844,6 @@
       updateActionAvailability();
     }catch(e){ updateActionAvailability(); }
   })();
-
-  document.getElementById('btnSaveJson').addEventListener('click', function(){
-    saveFile('工程表データ_'+(state.siteName||'現場')+'.json', JSON.stringify(state,null,2), 'application/json')
-      .then(function(){ flashHint('保存しました。'); })
-      .catch(function(err){ flashHint(saveErrorMessage(err)); });
-  });
-
-  document.getElementById('btnCsv').addEventListener('click', function(){
-    saveFile('工程表_'+(state.siteName||'現場')+'.csv', buildCsv(), 'text/csv;charset=utf-8')
-      .then(function(){ flashHint('保存しました。'); })
-      .catch(function(err){ flashHint(saveErrorMessage(err)); });
-  });
 
   // ---- init ----
   hydrateForm();
