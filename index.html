@@ -58,6 +58,11 @@
 
     <div class="card actions-card">
       <h2>保存・出力</h2>
+      <div class="field-grid two">
+        <label>出力開始日（任意）<input type="date" id="f-exportStart"></label>
+        <label>出力終了日（任意）<input type="date" id="f-exportEnd"></label>
+      </div>
+      <p class="hint">空欄の場合は、上の「表示期間」がそのままExcelに出力されます。長期工事などプレビューより広い期間で出力したいときに指定してください。</p>
       <div class="actions-row">
         <label class="hint-check"><input type="checkbox" id="f-includeContractor" checked>担当会社を含める</label>
         <button type="button" id="btnExcel" class="btn-secondary" disabled>Excelで保存(.xlsx)</button>
@@ -160,6 +165,8 @@
       createdDate:d.createdDate || todayISO(),
       startDate:d.startDate || todayISO(),
       days:Math.max(1, Math.min(60, Number(d.days) || 14)),
+      exportStartDate:d.exportStartDate || '',
+      exportEndDate:d.exportEndDate || '',
       remarks:d.remarks || '',
       trades:Array.isArray(d.trades) ? d.trades.map(function(t){
         return {
@@ -191,6 +198,22 @@
     var arr = [];
     for(var i=0;i<state.days;i++){
       var d = new Date(start);
+      d.setDate(d.getDate()+i);
+      arr.push(d);
+    }
+    return arr;
+  }
+
+  // Excel出力専用の期間。出力開始日・終了日の両方が指定されていればそちらを
+  // 使い、未指定ならプレビューと同じ表示期間（buildDays）にフォールバックする。
+  function buildExportDays(){
+    if(!state.exportStartDate || !state.exportEndDate) return buildDays();
+    var s = parseDate(state.exportStartDate), e = parseDate(state.exportEndDate);
+    if(e < s){ var tmp=s; s=e; e=tmp; }
+    var total = Math.max(1, Math.min(366, Math.round((e-s)/86400000)+1));
+    var arr = [];
+    for(var i=0;i<total;i++){
+      var d = new Date(s);
       d.setDate(d.getDate()+i);
       arr.push(d);
     }
@@ -324,7 +347,7 @@
 
   function buildXlsxBlob(includeContractor){
     if(!window.ExcelJS) return Promise.resolve(null);
-    var days = buildDays();
+    var days = buildExportDays();
     var numDays = days.length;
     // 担当会社 column is optional: when omitted, 工種 alone occupies column A
     // and the day columns start one column earlier.
@@ -620,6 +643,8 @@
     document.getElementById('f-createdDate').value = state.createdDate || '';
     document.getElementById('f-startDate').value = state.startDate || '';
     document.getElementById('f-days').value = state.days || 14;
+    document.getElementById('f-exportStart').value = state.exportStartDate || '';
+    document.getElementById('f-exportEnd').value = state.exportEndDate || '';
     document.getElementById('f-remarks').value = state.remarks || '';
   }
 
@@ -691,6 +716,8 @@
   bindStatic('f-createdDate','createdDate');
   bindStatic('f-startDate','startDate');
   bindStatic('f-days','days', function(v){ return Math.max(1, Math.min(60, Number(v) || 14)); });
+  bindStatic('f-exportStart','exportStartDate');
+  bindStatic('f-exportEnd','exportEndDate');
   bindStatic('f-remarks','remarks');
 
   document.querySelectorAll('[data-weeks]').forEach(function(btn){
