@@ -122,12 +122,19 @@ input[type=text],input[type=date],input[type=number],textarea{
 /* Native date/number controls render at a different intrinsic height than a
    plain text input in some browsers — pin them all to the same height. */
 input[type=text],input[type=date],input[type=number]{ height:38px; }
+/* iOS Safari can render an *empty* date input far taller than the `height`
+   above (it seems to ignore it while there's no value), which is only
+   visible once a field is legitimately optional/blank — appearance:none
+   plus an explicit line-height keeps it a single compact row without
+   affecting the native calendar icon/picker. */
+input[type=date]{ -webkit-appearance:none; appearance:none; line-height:20px; }
 input:focus,textarea:focus,button:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
 textarea{ resize:vertical; font-family:inherit; }
 @media (max-width:600px){
   /* 16px+ keeps iOS Safari from auto-zooming the page when a field is focused. */
   input[type=text],input[type=date],input[type=number],textarea{ font-size:16px; padding:10px 12px; }
   input[type=text],input[type=date],input[type=number]{ height:44px; }
+  input[type=date]{ line-height:24px; }
 }
 
 .preset-row{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
@@ -219,19 +226,22 @@ input.trade-name,input.trade-contractor{ background:var(--accent-soft); }
 .grid-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--border-strong); border-radius:10px; margin-top:16px; }
 table.gantt{ border-collapse:collapse; width:100%; font-size:12.5px; font-variant-numeric:tabular-nums; }
 table.gantt th,table.gantt td{ border:1px solid var(--border); padding:0; text-align:center; white-space:nowrap; }
-.col-trade,.col-contractor{ position:sticky; background:var(--surface); font-weight:600; padding:8px 10px; white-space:normal; min-width:100px; }
+table.gantt .col-trade,table.gantt .col-contractor{ white-space:normal; }
+.col-trade,.col-contractor{ position:sticky; background:var(--surface); font-weight:600; padding:8px 10px; min-width:100px; }
 .col-trade{ left:0; z-index:2; }
 .col-contractor{ left:100px; z-index:2; color:var(--ink-soft); font-weight:500; min-width:112px; }
 thead .col-trade,thead .col-contractor{ background:var(--surface-alt); z-index:3; }
 @media (max-width:600px){
   /* Narrow the 工種/担当会社 columns so more of the date grid fits on
      screen without horizontal scrolling; text wraps onto multiple lines
-     instead of forcing the column wide. col-trade uses a fixed `width`
-     (not just min/max-width) so col-contractor's sticky `left` lines up
-     exactly against it with no gap when the grid is scrolled. */
-  .col-trade,.col-contractor{ min-width:0; padding:6px 3px; font-size:10.5px; line-height:1.25; word-break:break-word; }
-  .col-trade{ width:44px; max-width:44px; }
-  .col-contractor{ left:44px; max-width:52px; }
+     instead of forcing the column wide. width/min-width/max-width are all
+     pinned to the same value — with word-break allowing a break almost
+     anywhere, auto table layout will otherwise shrink these columns far
+     below the intended size to make room for the (unwrappable) date
+     columns, which is what caused the earlier "はみ出る" text overflow. */
+  .col-trade,.col-contractor{ padding:6px 3px; font-size:10.5px; line-height:1.25; word-break:break-word; }
+  .col-trade{ width:44px; min-width:44px; max-width:44px; }
+  .col-contractor{ left:44px; width:52px; min-width:52px; max-width:52px; }
 }
 .daycol{ background:var(--surface-alt); padding:6px 2px; min-width:42px; }
 .daycol .d-num{ display:block; font-weight:700; font-size:12px; }
