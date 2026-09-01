@@ -153,8 +153,11 @@ textarea{ resize:vertical; font-family:inherit; }
 .trade-name{ flex:1 1 42%; font-weight:600; }
 .trade-contractor{ flex:1 1 42%; }
 /* Tint the 工種-level fields so they read as a distinct group from the
-   nested 作業 fields below them (which keep the default input color). */
-.trade-name,.trade-contractor{ background:var(--accent-soft); }
+   nested 作業 fields below them (which keep the default input color).
+   Needs the "input." prefix: input[type=text]{background:...} above is
+   an element+attribute selector, which outranks a bare class selector
+   regardless of source order. */
+input.trade-name,input.trade-contractor{ background:var(--accent-soft); }
 .tasks{ display:flex; flex-direction:column; gap:8px; margin-bottom:8px; }
 .task-row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .task-name{ flex:1 1 42%; min-width:0; }
