@@ -72,6 +72,7 @@
         <button type="button" id="btnCloudSave" class="btn-secondary">クラウドに保存</button>
         <select id="cloudScheduleSelect" class="cloud-select"><option value="">保存済みの工程表を選択…</option></select>
         <button type="button" id="btnCloudLoad" class="btn-secondary">開く</button>
+        <button type="button" id="btnCloudDelete" class="btn-ghost small">削除</button>
         <button type="button" id="btnCloudRefresh" class="btn-ghost small">更新</button>
       </div>
       <p class="hint" id="cloudHint"></p>
@@ -834,6 +835,23 @@
         currentScheduleId = id;
         hydrateForm(); renderTrades(); renderPreview();
         flashCloudHint('読み込みました。');
+      });
+    });
+  });
+
+  document.getElementById('btnCloudDelete').addEventListener('click', function(){
+    var sel = document.getElementById('cloudScheduleSelect');
+    var id = sel.value;
+    if(!id){ flashCloudHint('削除する工程表を選択してください。'); return; }
+    var label = sel.options[sel.selectedIndex].textContent;
+    if(!window.confirm('「'+label+'」を削除します。よろしいですか？')) return;
+    withCloudPasscode(function(passcode){
+      flashCloudHint('削除中…');
+      return supabaseClient.rpc('schedules_delete', { p_passcode:passcode, p_id:id }).then(function(res){
+        if(res.error) throw res.error;
+        if(currentScheduleId === id) currentScheduleId = null;
+        flashCloudHint('削除しました。');
+        return refreshCloudList(passcode);
       });
     });
   });

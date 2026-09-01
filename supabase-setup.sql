@@ -101,7 +101,22 @@ begin
 end;
 $$;
 
+create or replace function public.schedules_delete(p_passcode text, p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if not verify_cloud_passcode(p_passcode) then
+    raise exception 'invalid passcode';
+  end if;
+  delete from schedules where id = p_id;
+end;
+$$;
+
 revoke all on function public.verify_cloud_passcode(text) from anon, authenticated, public;
 grant execute on function public.schedules_list(text) to anon, authenticated;
 grant execute on function public.schedules_load(text, uuid) to anon, authenticated;
 grant execute on function public.schedules_save(text, uuid, text, jsonb) to anon, authenticated;
+grant execute on function public.schedules_delete(text, uuid) to anon, authenticated;
