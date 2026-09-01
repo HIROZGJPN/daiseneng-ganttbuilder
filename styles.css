@@ -223,6 +223,16 @@ table.gantt th,table.gantt td{ border:1px solid var(--border); padding:0; text-a
 .col-trade{ left:0; z-index:2; }
 .col-contractor{ left:100px; z-index:2; color:var(--ink-soft); font-weight:500; min-width:112px; }
 thead .col-trade,thead .col-contractor{ background:var(--surface-alt); z-index:3; }
+@media (max-width:600px){
+  /* Narrow the 工種/担当会社 columns so more of the date grid fits on
+     screen without horizontal scrolling; text wraps onto multiple lines
+     instead of forcing the column wide. col-trade uses a fixed `width`
+     (not just min/max-width) so col-contractor's sticky `left` lines up
+     exactly against it with no gap when the grid is scrolled. */
+  .col-trade,.col-contractor{ min-width:0; padding:6px 3px; font-size:10.5px; line-height:1.25; word-break:break-word; }
+  .col-trade{ width:44px; max-width:44px; }
+  .col-contractor{ left:44px; max-width:52px; }
+}
 .daycol{ background:var(--surface-alt); padding:6px 2px; min-width:42px; }
 .daycol .d-num{ display:block; font-weight:700; font-size:12px; }
 .daycol .d-wd{ display:block; font-size:10.5px; color:var(--ink-faint); }
