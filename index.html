@@ -59,12 +59,22 @@
     <div class="card actions-card">
       <h2>保存・出力</h2>
       <div class="actions-row">
-        <label class="btn-secondary file-btn">入力データを読み込む<input type="file" id="loadJsonInput" accept="application/json" hidden></label>
         <label class="hint-check"><input type="checkbox" id="f-includeContractor" checked>担当会社を含める</label>
         <button type="button" id="btnExcel" class="btn-secondary" disabled>Excelで保存(.xlsx)</button>
-        <button type="button" id="btnPrint" class="btn-primary" disabled>PDFで保存</button>
+        <button type="button" id="btnClear" class="btn-secondary">クリア</button>
       </div>
       <p class="hint" id="saveHint"></p>
+    </div>
+
+    <div class="card actions-card">
+      <h2>クラウド保存</h2>
+      <div class="actions-row">
+        <button type="button" id="btnCloudSave" class="btn-secondary">クラウドに保存</button>
+        <select id="cloudScheduleSelect" class="cloud-select"><option value="">保存済みの工程表を選択…</option></select>
+        <button type="button" id="btnCloudLoad" class="btn-secondary">開く</button>
+        <button type="button" id="btnCloudRefresh" class="btn-ghost small">更新</button>
+      </div>
+      <p class="hint" id="cloudHint"></p>
     </div>
   </section>
 
@@ -73,9 +83,8 @@
   </section>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
   "use strict";
@@ -275,70 +284,6 @@
       '<div class="remarks-block"><div class="remarks-label">備考</div><div class="remarks-body">'+(state.remarks ? esc(state.remarks).replace(/\n/g,'<br>') : '　')+'</div></div>';
 
     saveDraft();
-  }
-
-  // jsPDF's built-in fonts (Helvetica etc.) have no Japanese glyphs, which
-  // is what caused garbled/missing text. Rendering the already-correct
-  // on-screen sheet to a canvas and embedding that as an image sidesteps
-  // font embedding entirely.
-  function buildPdfBlob(){
-    if(!window.jspdf || !window.jspdf.jsPDF || !window.html2canvas) return Promise.resolve(null);
-    var jsPDF = window.jspdf.jsPDF;
-    var days = buildDays();
-    var sheetEl = document.getElementById('sheet');
-    // .grid-scroll scrolls horizontally and .preview clips vertically (for the
-    // sticky preview), so the live element's own box is narrower/shorter than
-    // its full content. Measure the true content size and free the clone from
-    // those constraints (and the surrounding grid) so nothing gets cropped.
-    var gridScroll = sheetEl.querySelector('.grid-scroll');
-    var targetWidth = (gridScroll ? gridScroll.scrollWidth : sheetEl.scrollWidth) + 44;
-    var targetHeight = sheetEl.scrollHeight;
-
-    return window.html2canvas(sheetEl, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      width: targetWidth,
-      // Height is intentionally left for html2canvas to auto-detect from the
-      // cloned element post-onclone — the clone gains a company-name box that
-      // can shift the content's true height, and a height fixed to the
-      // pre-clone measurement would crop it (a hard-coded height wrote off
-      // the trailing trade rows when this option box wasn't accounted for).
-      windowWidth: targetWidth + 40,
-      windowHeight: targetHeight + 2000,
-      onclone: function(clonedDoc){
-        clonedDoc.documentElement.setAttribute('data-theme','light');
-        var cSheet = clonedDoc.getElementById('sheet');
-        if(!cSheet) return;
-        cSheet.style.position = 'fixed';
-        cSheet.style.left = '0';
-        cSheet.style.top = '0';
-        cSheet.style.width = targetWidth + 'px';
-        cSheet.style.maxWidth = 'none';
-        var cGridScroll = cSheet.querySelector('.grid-scroll');
-        if(cGridScroll) cGridScroll.style.overflow = 'visible';
-        // 会社名 appears in the PDF/Excel output but not the on-screen preview —
-        // append it only to this clone, which is never shown to the user.
-        var cMetaGrid = cSheet.querySelector('.meta-grid');
-        if(cMetaGrid){
-          cMetaGrid.style.gridTemplateColumns = '1.3fr 1.6fr 1fr 1fr 1.1fr 1.3fr';
-          var companyBox = clonedDoc.createElement('div');
-          companyBox.className = 'meta';
-          companyBox.innerHTML = '<span class="meta-v">株式会社 大泉エンジニアリング</span>';
-          cMetaGrid.appendChild(companyBox);
-        }
-      }
-    }).then(function(canvas){
-      var doc = new jsPDF({ orientation:'landscape', unit:'pt', format: days.length>21 ? 'a3' : 'a4' });
-      var pageWidth = doc.internal.pageSize.getWidth();
-      var pageHeight = doc.internal.pageSize.getHeight();
-      var margin = 24;
-      var maxW = pageWidth - margin*2, maxH = pageHeight - margin*2;
-      var ratio = Math.min(maxW/canvas.width, maxH/canvas.height);
-      var drawW = canvas.width*ratio, drawH = canvas.height*ratio;
-      var x = (pageWidth-drawW)/2, y = (pageHeight-drawH)/2;
-      doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, y, drawW, drawH);
-      return doc.output('blob');
-    });
   }
 
   function hex2(n){ return ('0'+Math.max(0,Math.min(255,Math.round(n))).toString(16).toUpperCase()).slice(-2); }
@@ -553,7 +498,6 @@
               var startCol = dayStartCol+di, endCol = dayStartCol+di+task.span-1;
               if(task.span>1){
                 ws.mergeCells(taskRow,startCol,taskRow,endCol);
-                ws.mergeCells(padTopRow,startCol,padTopRow,endCol);
               }
               for(var cc=startCol; cc<=endCol; cc++){
                 ws.getCell(taskRow,cc).fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_TASK_FILL} };
@@ -730,6 +674,14 @@
     hintTimer = setTimeout(function(){ el.textContent=''; }, 4500);
   }
 
+  var cloudHintTimer = null;
+  function flashCloudHint(msg){
+    var el = document.getElementById('cloudHint');
+    el.textContent = msg;
+    clearTimeout(cloudHintTimer);
+    cloudHintTimer = setTimeout(function(){ el.textContent=''; }, 4500);
+  }
+
   // ---- wire up static fields ----
   bindStatic('f-siteName','siteName');
   bindStatic('f-projectName','projectName');
@@ -776,20 +728,6 @@
     renderPreview();
   });
 
-  document.getElementById('btnPrint').addEventListener('click', function(){
-    var btn = this;
-    btn.disabled = true;
-    flashHint('PDFを作成中…');
-    Promise.resolve().then(buildPdfBlob).then(function(blob){
-      if(!blob) throw { code:'unavailable' };
-      return saveFile('工程表_'+(state.siteName||'現場')+'.pdf', blob, 'application/pdf');
-    }).then(function(){ flashHint('PDFを保存しました。'); })
-      .catch(function(err){
-        flashHint(err && err.code==='unavailable' ? 'PDF機能を読み込めませんでした。時間をおいて再度お試しください。' : saveErrorMessage(err));
-      })
-      .then(function(){ btn.disabled = false; });
-  });
-
   document.getElementById('btnExcel').addEventListener('click', function(){
     if(inClaudeViewer){ flashHint('この画面ではExcel保存は利用できません。ページを配信環境（Vercelなど）に公開すると使えます。'); return; }
     if(!window.ExcelJS){ flashHint('Excel機能を読み込めませんでした。時間をおいて再度お試しください。'); return; }
@@ -801,23 +739,110 @@
       .catch(function(err){ flashHint(err && err.code ? saveErrorMessage(err) : 'Excelファイルの作成に失敗しました。'); });
   });
 
-  document.getElementById('loadJsonInput').addEventListener('change', function(e){
-    var file = e.target.files[0];
-    if(!file) return;
-    var reader = new FileReader();
-    reader.onload = function(){
-      try{
-        var data = JSON.parse(String(reader.result));
-        if(!data || !Array.isArray(data.trades)) throw new Error('invalid');
-        state = normalizeState(data);
-        hydrateForm(); renderTrades(); renderPreview();
-        flashHint('読み込みました。');
-      }catch(err){
-        flashHint('ファイルを読み込めませんでした。形式をご確認ください。');
+  document.getElementById('btnClear').addEventListener('click', function(){
+    if(!window.confirm('入力内容をすべてクリアします。よろしいですか？')) return;
+    state = normalizeState({ startDate:todayISO(), createdDate:todayISO(), days:14 });
+    hydrateForm(); renderTrades(); renderPreview();
+    flashHint('クリアしました。');
+  });
+
+  // ---- cloud save/load (Supabase) ----
+  // 合言葉はサーバー側(SECURITY DEFINER RPC)で検証される。anonキー自体は
+  // 公開前提の値なので埋め込んでよいが、テーブルへの直接アクセスはRLSで
+  // 拒否し、この3つのRPC経由でしかデータに触れられない。
+  var SUPABASE_URL = 'https://keqctvhdijnevpgelakm.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_lbZnIRZqlgtIR0Sq0EACpw_kJjb_62n';
+  var supabaseClient = (window.supabase && SUPABASE_URL.indexOf('YOUR-PROJECT') === -1)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  var CLOUD_PASS_KEY = 'koutei-builder-cloud-pass';
+  var currentScheduleId = null;
+
+  function getCloudPasscode(forcePrompt){
+    var saved = !forcePrompt && localStorage.getItem(CLOUD_PASS_KEY);
+    if(saved) return saved;
+    var input = window.prompt('クラウド機能の合言葉を入力してください');
+    if(input) localStorage.setItem(CLOUD_PASS_KEY, input);
+    return input || null;
+  }
+
+  function isInvalidPasscode(err){
+    return !!(err && err.message && /invalid passcode/i.test(err.message));
+  }
+
+  function fmtDateTime(iso){
+    if(!iso) return '';
+    var d = new Date(iso);
+    return d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+  }
+
+  function refreshCloudList(passcode){
+    if(!supabaseClient) return Promise.resolve();
+    return supabaseClient.rpc('schedules_list', { p_passcode: passcode }).then(function(res){
+      if(res.error) throw res.error;
+      var sel = document.getElementById('cloudScheduleSelect');
+      var current = currentScheduleId;
+      sel.innerHTML = '<option value="">保存済みの工程表を選択…</option>';
+      (res.data || []).forEach(function(row){
+        var opt = document.createElement('option');
+        opt.value = row.id;
+        opt.textContent = row.name + '（' + fmtDateTime(row.updated_at) + '）';
+        if(row.id === current) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    });
+  }
+
+  function withCloudPasscode(fn){
+    if(!supabaseClient){ flashCloudHint('クラウド機能が設定されていません。'); return; }
+    var passcode = getCloudPasscode();
+    if(!passcode) return;
+    fn(passcode).catch(function(err){
+      if(isInvalidPasscode(err)){
+        localStorage.removeItem(CLOUD_PASS_KEY);
+        flashCloudHint('合言葉が違います。もう一度お試しください。');
+      } else {
+        flashCloudHint('通信に失敗しました。');
       }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
+    });
+  }
+
+  document.getElementById('btnCloudSave').addEventListener('click', function(){
+    withCloudPasscode(function(passcode){
+      var name = state.projectName || state.siteName || '無題の工程表';
+      flashCloudHint('保存中…');
+      return supabaseClient.rpc('schedules_save', { p_passcode:passcode, p_id:currentScheduleId, p_name:name, p_data:state }).then(function(res){
+        if(res.error) throw res.error;
+        currentScheduleId = res.data;
+        flashCloudHint('クラウドに保存しました。');
+        return refreshCloudList(passcode);
+      });
+    });
+  });
+
+  document.getElementById('btnCloudLoad').addEventListener('click', function(){
+    var sel = document.getElementById('cloudScheduleSelect');
+    var id = sel.value;
+    if(!id){ flashCloudHint('読み込む工程表を選択してください。'); return; }
+    withCloudPasscode(function(passcode){
+      flashCloudHint('読み込み中…');
+      return supabaseClient.rpc('schedules_load', { p_passcode:passcode, p_id:id }).then(function(res){
+        if(res.error) throw res.error;
+        if(!res.data){ flashCloudHint('データが見つかりませんでした。'); return; }
+        state = normalizeState(res.data);
+        currentScheduleId = id;
+        hydrateForm(); renderTrades(); renderPreview();
+        flashCloudHint('読み込みました。');
+      });
+    });
+  });
+
+  document.getElementById('btnCloudRefresh').addEventListener('click', function(){
+    withCloudPasscode(function(passcode){
+      flashCloudHint('一覧を更新中…');
+      return refreshCloudList(passcode).then(function(){ flashCloudHint('一覧を更新しました。'); });
+    });
   });
 
   var inClaudeViewer = !!(window.claude && typeof window.claude.use === 'function');
@@ -851,11 +876,9 @@
   }
 
   function updateActionAvailability(){
-    var avail = !!downloadsApi || !inClaudeViewer;
-    document.getElementById('btnPrint').disabled = !avail;
     document.getElementById('btnExcel').disabled = inClaudeViewer;
-    if(inClaudeViewer && !avail){
-      document.getElementById('saveHint').textContent = 'この画面では保存機能を利用できない場合があります。読み込みは引き続きご利用いただけます。';
+    if(inClaudeViewer && !downloadsApi){
+      document.getElementById('saveHint').textContent = 'この画面では保存機能を利用できない場合があります。';
     }
   }
   (function(){
