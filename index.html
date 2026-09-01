@@ -10,7 +10,6 @@
     <span class="brand-mark" aria-hidden="true">工程</span>
     <h1>工程表ビルダー</h1>
   </div>
-  <p class="tagline">現場情報と工種・作業日程を入力すると、右側にそのまま印刷できる工程表が組み上がります。入力データはJSONで保存でき、あとから読み込んで再編集できます。</p>
 </header>
 
 <main class="shell">
@@ -122,17 +121,17 @@
       days:14,
       remarks:'・雨天時は屋外作業を順延します\n・資材搬入は北側ゲートを使用してください',
       trades:[
-        { id:newId(), name:'仮設工事', contractor:'◯◯建設(株)', color:1, tasks:[
+        { id:newId(), name:'仮設工事', contractor:'◯◯建設(株)', tasks:[
           { id:newId(), name:'足場組立', start:addDaysIso(start,0), end:addDaysIso(start,1) }
         ]},
-        { id:newId(), name:'屋根工事', contractor:'△△工業(株)', color:2, tasks:[
+        { id:newId(), name:'屋根工事', contractor:'△△工業(株)', tasks:[
           { id:newId(), name:'屋根解体', start:addDaysIso(start,2), end:addDaysIso(start,3) },
           { id:newId(), name:'屋根復旧', start:addDaysIso(start,6), end:addDaysIso(start,7) }
         ]},
-        { id:newId(), name:'設備工事', contractor:'□□設備(有)', color:5, tasks:[
+        { id:newId(), name:'設備工事', contractor:'□□設備(有)', tasks:[
           { id:newId(), name:'配管更新', start:addDaysIso(start,4), end:addDaysIso(start,8) }
         ]},
-        { id:newId(), name:'電気工事', contractor:'××電設(株)', color:6, tasks:[
+        { id:newId(), name:'電気工事', contractor:'××電設(株)', tasks:[
           { id:newId(), name:'配線・盤交換', start:addDaysIso(start,8), end:addDaysIso(start,11) }
         ]}
       ]
@@ -155,7 +154,6 @@
           id:t.id || newId(),
           name:t.name || '',
           contractor:t.contractor || '',
-          color:(Number(t.color) >= 1 && Number(t.color) <= 8) ? Number(t.color) : 1,
           tasks:Array.isArray(t.tasks) ? t.tasks.map(function(k){
             return { id:k.id || newId(), name:k.name || '', start:k.start || '', end:k.end || '' };
           }) : []
@@ -222,7 +220,7 @@
         if(task && task.startIdx===di){
           var barToday = false;
           for(var k=task.startIdx;k<=task.endIdx;k++){ if(isToday(days[k])){ barToday=true; break; } }
-          cells.push('<td colspan="'+task.span+'" class="task-bar cat'+trade.color+(barToday?' bar-today':'')+'" title="'+esc(task.name)+' '+fmtDate(task.rawStart)+'〜'+fmtDate(task.rawEnd)+'">'+esc(task.name)+'</td>');
+          cells.push('<td colspan="'+task.span+'" class="task-bar'+(barToday?' bar-today':'')+'" title="'+esc(task.name)+' '+fmtDate(task.rawStart)+'〜'+fmtDate(task.rawEnd)+'">'+esc(task.name)+'</td>');
           di += task.span; ti++;
         } else {
           var d = days[di];
@@ -233,7 +231,7 @@
         }
       }
       var lead = lane===0
-        ? '<td class="col-trade" rowspan="'+laneCount+'" style="border-left:4px solid var(--cat'+trade.color+'-edge)">'+(esc(trade.name)||'（工種名未入力）')+'</td>'+
+        ? '<td class="col-trade" rowspan="'+laneCount+'">'+(esc(trade.name)||'（工種名未入力）')+'</td>'+
           '<td class="col-contractor" rowspan="'+laneCount+'">'+(esc(trade.contractor)||'—')+'</td>'
         : '';
       var endClass = (lane===laneCount-1) ? ' trade-end' : '';
@@ -614,9 +612,6 @@
 
   function renderTrades(){
     var html = state.trades.map(function(trade){
-      var swatches = [1,2,3,4,5,6,7,8].map(function(n){
-        return '<button type="button" class="swatch cat'+n+(n===trade.color?' selected':'')+'" data-action="set-color" data-trade="'+trade.id+'" data-color="'+n+'" aria-label="色'+n+'"></button>';
-      }).join('');
       var tasks = trade.tasks.map(function(task){
         return '<div class="task-row">'+
           '<input type="text" class="task-name" data-field="task-name" data-trade="'+trade.id+'" data-task="'+task.id+'" value="'+esc(task.name)+'" placeholder="作業名">'+
@@ -634,7 +629,6 @@
           '<input type="text" class="trade-contractor" data-field="contractor" data-trade="'+trade.id+'" value="'+esc(trade.contractor)+'" placeholder="担当会社">'+
           '<button type="button" class="icon-btn" data-action="remove-trade" data-trade="'+trade.id+'" aria-label="この工種を削除">✕</button>'+
         '</div>'+
-        '<div class="swatches" role="group" aria-label="表示色を選択">'+swatches+'</div>'+
         '<div class="tasks">'+tasks+'</div>'+
         '<button type="button" class="btn-ghost small" data-action="add-task" data-trade="'+trade.id+'">+ 作業を追加</button>'+
       '</div>';
@@ -654,8 +648,7 @@
   }
 
   function addTrade(){
-    var color = (state.trades.length % 8) + 1;
-    var trade = { id:newId(), name:'', contractor:'', color:color, tasks:[{ id:newId(), name:'', start:'', end:'' }] };
+    var trade = { id:newId(), name:'', contractor:'', tasks:[{ id:newId(), name:'', start:'', end:'' }] };
     state.trades.push(trade);
     renderTrades(); renderPreview();
     var el = document.querySelector('.trade-name[data-trade="'+trade.id+'"]');
@@ -680,13 +673,6 @@
     trade.tasks = trade.tasks.filter(function(t){ return t.id!==taskId; });
     renderTrades(); renderPreview();
   }
-  function setColor(tradeId, color){
-    var trade = state.trades.find(function(t){ return t.id===tradeId; });
-    if(!trade) return;
-    trade.color = color;
-    renderTrades(); renderPreview();
-  }
-
   function bindStatic(id, key, transform){
     var el = document.getElementById(id);
     el.addEventListener('input', function(){
@@ -760,7 +746,6 @@
     if(action==='remove-trade') removeTrade(tradeId);
     else if(action==='add-task') addTask(tradeId);
     else if(action==='remove-task') removeTask(tradeId, btn.dataset.task);
-    else if(action==='set-color') setColor(tradeId, Number(btn.dataset.color));
   });
 
   document.getElementById('tradesList').addEventListener('input', function(e){
