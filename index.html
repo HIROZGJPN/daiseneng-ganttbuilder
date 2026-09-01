@@ -373,7 +373,8 @@
     var ws = wb.addWorksheet('工程表', { views:[{ showGridLines:false }] });
 
     ws.properties.defaultRowHeight = 18.75;
-    ws.getColumn(1).width = 16;
+    // Excel's column "width" unit is roughly (pixels-5)/7 for the default font.
+    ws.getColumn(1).width = includeContractor ? 16 : (200-5)/7;
     if(includeContractor) ws.getColumn(2).width = 14;
     for(var c=dayStartCol;c<=lastCol;c++){ ws.getColumn(c).width = 7.625; }
 
@@ -441,7 +442,10 @@
 
     var periodRow = 3;
     ws.getRow(periodRow).height = 30;
-    var periodBounds = splitColumnsByWeight(lastCol, [2,6,2,6]);
+    // "期間" is pinned to columns 1..nameCols, matching 現場名's width above it;
+    // the date range splits across whatever's left.
+    var periodRestBounds = splitColumnsByWeight(lastCol-nameCols, [6,2,6]);
+    var periodBounds = [0, nameCols].concat(periodRestBounds.slice(1).map(function(n){ return nameCols+n; }));
     var periodAligns = ['center','right','center','left'];
     var periodSegs = [
       '期間', fmtDateW(days[0]), '〜', fmtDateW(days[days.length-1])
