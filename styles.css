@@ -87,7 +87,7 @@ button{ font-family:inherit; }
 
 .topbar{ max-width:1600px; margin:0 auto; padding:28px 24px 8px; }
 .brand{ display:flex; align-items:center; gap:12px; }
-.brand-mark{ display:inline-flex; align-items:center; justify-content:center; width:42px; height:42px; border-radius:9px; background:var(--accent); color:var(--accent-ink); font-family:'Zen Kaku Gothic New',sans-serif; font-weight:700; font-size:12.5px; letter-spacing:.02em; flex:0 0 auto; }
+.brand-mark{ width:42px; height:42px; border-radius:9px; flex:0 0 auto; }
 .brand h1{ font-size:22px; font-weight:700; }
 
 .shell{ max-width:1600px; margin:0 auto; padding:16px 24px 60px; display:grid; grid-template-columns:380px 1fr; gap:22px; align-items:start; }
