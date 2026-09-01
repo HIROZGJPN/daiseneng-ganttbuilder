@@ -19,7 +19,10 @@
 <main class="shell">
   <section class="panel" aria-label="入力パネル">
     <div class="card">
-      <h2>現場情報</h2>
+      <div class="card-head">
+        <h2>現場情報</h2>
+        <button type="button" id="btnClearSite" class="btn-secondary small">クリア</button>
+      </div>
       <div class="field-grid">
         <label>現場名<input type="text" id="f-siteName" placeholder="例：◯◯ビル増築工事"></label>
         <label>工事名<input type="text" id="f-projectName" placeholder="例：外壁改修および設備更新工事"></label>
@@ -46,7 +49,10 @@
     <div class="card">
       <div class="card-head">
         <h2>工種・作業</h2>
-        <button type="button" id="addTradeBtn" class="btn-primary small">+ 工種を追加</button>
+        <div class="card-head-actions">
+          <button type="button" id="addTradeBtn" class="btn-primary small">+ 工種を追加</button>
+          <button type="button" id="btnClearTrades" class="btn-secondary small">クリア</button>
+        </div>
       </div>
       <div id="tradesList"></div>
     </div>
@@ -66,7 +72,6 @@
       <div class="actions-row">
         <label class="hint-check"><input type="checkbox" id="f-includeContractor" checked>担当会社を含める</label>
         <button type="button" id="btnExcel" class="btn-secondary" disabled>Excelで保存(.xlsx)</button>
-        <button type="button" id="btnClear" class="btn-secondary">クリア</button>
       </div>
       <p class="hint" id="saveHint"></p>
     </div>
@@ -767,11 +772,22 @@
       .catch(function(err){ flashHint(err && err.code ? saveErrorMessage(err) : 'Excelファイルの作成に失敗しました。'); });
   });
 
-  document.getElementById('btnClear').addEventListener('click', function(){
-    if(!window.confirm('入力内容をすべてクリアします。よろしいですか？')) return;
-    state = normalizeState({ startDate:todayISO(), createdDate:todayISO(), days:14 });
-    hydrateForm(); renderTrades(); renderPreview();
-    flashHint('クリアしました。');
+  document.getElementById('btnClearSite').addEventListener('click', function(){
+    if(!window.confirm('現場情報をクリアします。よろしいですか？')) return;
+    state.siteName = '';
+    state.projectName = '';
+    state.siteRep = '';
+    state.designer = '';
+    state.createdDate = todayISO();
+    hydrateForm(); renderPreview();
+    flashHint('現場情報をクリアしました。');
+  });
+
+  document.getElementById('btnClearTrades').addEventListener('click', function(){
+    if(!window.confirm('工種・作業をすべてクリアします。よろしいですか？')) return;
+    state.trades = [];
+    renderTrades(); renderPreview();
+    flashHint('工種・作業をクリアしました。');
   });
 
   // ---- cloud save/load (Supabase) ----

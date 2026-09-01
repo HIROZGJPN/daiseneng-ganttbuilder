@@ -107,6 +107,7 @@ button{ font-family:inherit; }
 .card h2{ font-size:14px; font-weight:700; margin-bottom:12px; letter-spacing:.01em; }
 .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
 .card-head h2{ margin-bottom:0; }
+.card-head-actions{ display:flex; align-items:center; gap:8px; }
 
 .field-grid{ display:grid; grid-template-columns:1fr; gap:12px; }
 .field-grid.two{ grid-template-columns:1fr 1fr; }
@@ -147,6 +148,7 @@ textarea{ resize:vertical; font-family:inherit; }
 .btn-secondary{ background:var(--surface-alt); color:var(--ink); border-color:var(--border); }
 .btn-secondary:hover{ border-color:var(--accent); }
 .btn-secondary:disabled{ opacity:.5; cursor:not-allowed; }
+.btn-secondary.small{ padding:6px 12px; font-size:12.5px; }
 .btn-ghost{ background:transparent; color:var(--accent); border:1px dashed var(--border-strong); }
 .btn-ghost.small{ padding:6px 10px; font-size:12.5px; }
 
