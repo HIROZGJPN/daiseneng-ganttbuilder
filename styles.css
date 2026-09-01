@@ -18,7 +18,6 @@
   --sun-wd:#a8433a;
   --today:#c9860a;
 
-  --trade-bg:#e4e4e4;
   --task-bg:#d2d2d2;
   --task-edge:#8a8a8a;
 }
@@ -43,7 +42,6 @@
     --sun-wd:#e3958a;
     --today:#e0b04d;
 
-    --trade-bg:#35383c;
     --task-bg:#4b4f54;
     --task-edge:#9aa0a6;
   }
@@ -68,7 +66,6 @@
   --sun-wd:#e3958a;
   --today:#e0b04d;
 
-  --trade-bg:#35383c;
   --task-bg:#4b4f54;
   --task-edge:#9aa0a6;
 }
@@ -125,10 +122,6 @@ input[type=text],input[type=date],input[type=number],textarea{
 /* Native date/number controls render at a different intrinsic height than a
    plain text input in some browsers — pin them all to the same height. */
 input[type=text],input[type=date],input[type=number]{ height:38px; }
-/* iOS Safari's default date-field chrome carries its own intrinsic width and
-   ignores the declared width until -webkit-appearance is reset, making the
-   field render wider than the other inputs in the same column. */
-input[type=date]{ -webkit-appearance:none; appearance:none; }
 input:focus,textarea:focus,button:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
 textarea{ resize:vertical; font-family:inherit; }
 @media (max-width:600px){
@@ -159,11 +152,17 @@ textarea{ resize:vertical; font-family:inherit; }
 .trade-row{ display:flex; gap:8px; margin-bottom:8px; }
 .trade-name{ flex:1 1 42%; font-weight:600; }
 .trade-contractor{ flex:1 1 42%; }
+/* Tint the 工種-level fields so they read as a distinct group from the
+   nested 作業 fields below them (which keep the default input color). */
+.trade-name,.trade-contractor{ background:var(--accent-soft); }
 .tasks{ display:flex; flex-direction:column; gap:8px; margin-bottom:8px; }
 .task-row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.task-name{ flex:1 1 42%; }
-.task-dates{ display:flex; align-items:center; gap:6px; flex:2 1 0; min-width:0; }
-.task-date{ flex:1 1 auto; min-width:0; }
+.task-name{ flex:1 1 42%; min-width:0; }
+/* task-date needs a real minimum width or the native date picker collapses
+   to just its calendar icon with no room to show the date text. Let
+   task-name give up space first (it shrinks freely; a date input can't). */
+.task-dates{ display:flex; align-items:center; gap:6px; flex:2 1 auto; }
+.task-date{ flex:1 1 auto; min-width:105px; }
 .tilde{ color:var(--ink-faint); font-size:12px; flex:0 0 auto; }
 .empty-hint{ color:var(--ink-faint); font-size:13px; margin:0; }
 
@@ -216,9 +215,9 @@ textarea{ resize:vertical; font-family:inherit; }
 .grid-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--border-strong); border-radius:10px; margin-top:16px; }
 table.gantt{ border-collapse:collapse; width:100%; font-size:12.5px; font-variant-numeric:tabular-nums; }
 table.gantt th,table.gantt td{ border:1px solid var(--border); padding:0; text-align:center; white-space:nowrap; }
-.col-trade,.col-contractor{ position:sticky; font-weight:600; padding:8px 10px; white-space:normal; min-width:100px; }
-.col-trade{ left:0; z-index:2; background:var(--trade-bg); }
-.col-contractor{ left:100px; z-index:2; color:var(--ink-soft); font-weight:500; min-width:112px; background:var(--surface); }
+.col-trade,.col-contractor{ position:sticky; background:var(--surface); font-weight:600; padding:8px 10px; white-space:normal; min-width:100px; }
+.col-trade{ left:0; z-index:2; }
+.col-contractor{ left:100px; z-index:2; color:var(--ink-soft); font-weight:500; min-width:112px; }
 thead .col-trade,thead .col-contractor{ background:var(--surface-alt); z-index:3; }
 .daycol{ background:var(--surface-alt); padding:6px 2px; min-width:42px; }
 .daycol .d-num{ display:block; font-weight:700; font-size:12px; }
