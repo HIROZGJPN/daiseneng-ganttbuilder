@@ -262,7 +262,6 @@
         '<div class="meta"><span class="meta-k">現場代理人</span><span class="meta-v">'+(esc(state.siteRep)||'—')+'</span></div>'+
         '<div class="meta"><span class="meta-k">設計担当</span><span class="meta-v">'+(esc(state.designer)||'—')+'</span></div>'+
         '<div class="meta"><span class="meta-k">作成日</span><span class="meta-v">'+(fmtDate(state.createdDate)||'—')+'</span></div>'+
-        '<div class="meta"><span class="meta-v">株式会社 大泉エンジニアリング</span></div>'+
       '</div>'+
       '<div class="period-line">期間　'+fmtDateW(start)+' 〜 '+fmtDateW(end)+'　（'+state.days+'日間） <span class="dot">・</span> 工種 '+state.trades.length+'件 <span class="dot">・</span> 作業 '+totalTasks+'件</div>'+
       '<div class="grid-scroll"><table class="gantt">'+
@@ -295,9 +294,13 @@
       scale: 2,
       backgroundColor: '#ffffff',
       width: targetWidth,
-      height: targetHeight,
+      // Height is intentionally left for html2canvas to auto-detect from the
+      // cloned element post-onclone — the clone gains a company-name box that
+      // can shift the content's true height, and a height fixed to the
+      // pre-clone measurement would crop it (a hard-coded height wrote off
+      // the trailing trade rows when this option box wasn't accounted for).
       windowWidth: targetWidth + 40,
-      windowHeight: targetHeight + 40,
+      windowHeight: targetHeight + 2000,
       onclone: function(clonedDoc){
         clonedDoc.documentElement.setAttribute('data-theme','light');
         var cSheet = clonedDoc.getElementById('sheet');
@@ -309,6 +312,16 @@
         cSheet.style.maxWidth = 'none';
         var cGridScroll = cSheet.querySelector('.grid-scroll');
         if(cGridScroll) cGridScroll.style.overflow = 'visible';
+        // 会社名 appears in the PDF/Excel output but not the on-screen preview —
+        // append it only to this clone, which is never shown to the user.
+        var cMetaGrid = cSheet.querySelector('.meta-grid');
+        if(cMetaGrid){
+          cMetaGrid.style.gridTemplateColumns = '1.3fr 1.6fr 1fr 1fr 1.1fr 1.3fr';
+          var companyBox = clonedDoc.createElement('div');
+          companyBox.className = 'meta';
+          companyBox.innerHTML = '<span class="meta-v">株式会社 大泉エンジニアリング</span>';
+          cMetaGrid.appendChild(companyBox);
+        }
       }
     }).then(function(canvas){
       var doc = new jsPDF({ orientation:'landscape', unit:'pt', format: days.length>21 ? 'a3' : 'a4' });
