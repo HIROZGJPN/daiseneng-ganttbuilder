@@ -547,11 +547,15 @@
             var task = laneTasks[ti];
             if(task && task.startIdx===di){
               var startCol = dayStartCol+di, endCol = dayStartCol+di+task.span-1;
-              if(task.span>1) ws.mergeCells(taskRow,startCol,taskRow,endCol);
+              if(task.span>1){
+                ws.mergeCells(taskRow,startCol,taskRow,endCol);
+                ws.mergeCells(padTopRow,startCol,padTopRow,endCol);
+              }
               for(var cc=startCol; cc<=endCol; cc++){
                 ws.getCell(taskRow,cc).fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_TASK_FILL} };
               }
-              var tcell = ws.getCell(taskRow,startCol);
+              // 作業名 sits in the row above the filled bar, not inside it.
+              var tcell = ws.getCell(padTopRow,startCol);
               tcell.value = task.name || '';
               tcell.font = { name:XLSX_FONT, size:8 };
               tcell.alignment = { horizontal:'left', vertical:'middle', indent:1 };
@@ -788,7 +792,7 @@
     var includeContractor = document.getElementById('f-includeContractor').checked;
     Promise.resolve().then(function(){ return buildXlsxBlob(includeContractor); }).then(function(blob){
       if(!blob) throw { code:'unavailable' };
-      return saveFile('工程表_'+(state.siteName||'現場')+'.xlsx', blob, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      return saveFile('工程表_'+(state.projectName||'工事')+'.xlsx', blob, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }).then(function(){ flashHint('Excelファイルを保存しました。'); })
       .catch(function(err){ flashHint(err && err.code ? saveErrorMessage(err) : 'Excelファイルの作成に失敗しました。'); });
   });
