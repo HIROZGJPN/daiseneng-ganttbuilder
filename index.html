@@ -226,7 +226,7 @@
   }
 
   function assignLanes(tasks, startDate, totalDays){
-    var parsed = (tasks || []).filter(function(t){ return t.name && t.start && t.end; }).map(function(t){
+    var parsed = (tasks || []).filter(function(t){ return t.start && t.end; }).map(function(t){
       var s = parseDate(t.start), e = parseDate(t.end);
       if(e < s){ var tmp=s; s=e; e=tmp; }
       var startIdx = Math.round((s - startDate) / 86400000);
@@ -284,7 +284,7 @@
     var days = buildDays();
     var start = days[0], end = days[days.length-1];
     var titleLabel = (state.days % 7 === 0) ? ('【'+(state.days/7)+'週間工程表】') : ('【工程表（'+state.days+'日間）】');
-    var totalTasks = state.trades.reduce(function(sum,t){ return sum + t.tasks.filter(function(k){ return k.name && k.start && k.end; }).length; }, 0);
+    var totalTasks = state.trades.reduce(function(sum,t){ return sum + t.tasks.filter(function(k){ return k.start && k.end; }).length; }, 0);
 
     var headCells = days.map(function(d){
       var wd = weekendClass(d);
