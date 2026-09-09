@@ -17,8 +17,8 @@
   --sun-bg:#fbe1de;
   --sun-wd:#a8433a;
   --today:#c9860a;
-  --holiday-stripe: rgba(196,138,10,.28);
-  --holiday-mark:#8a5d06;
+  --rest-stripe: rgba(196,138,10,.28);
+  --rest-mark:#8a5d06;
 
   --task-bg:#d2d2d2;
   --task-edge:#8a8a8a;
@@ -43,8 +43,8 @@
     --sun-bg:#472b29;
     --sun-wd:#e3958a;
     --today:#e0b04d;
-    --holiday-stripe: rgba(224,176,77,.28);
-    --holiday-mark:#e0b04d;
+    --rest-stripe: rgba(224,176,77,.28);
+    --rest-mark:#e0b04d;
 
     --task-bg:#4b4f54;
     --task-edge:#9aa0a6;
@@ -69,8 +69,8 @@
   --sun-bg:#472b29;
   --sun-wd:#e3958a;
   --today:#e0b04d;
-  --holiday-stripe: rgba(224,176,77,.28);
-  --holiday-mark:#e0b04d;
+  --rest-stripe: rgba(224,176,77,.28);
+  --rest-mark:#e0b04d;
 
   --task-bg:#4b4f54;
   --task-edge:#9aa0a6;
@@ -148,14 +148,6 @@ textarea{ resize:vertical; font-family:inherit; }
 .preset-row button{ font-size:12.5px; padding:6px 12px; border-radius:999px; border:1px solid var(--border); background:var(--surface-alt); color:var(--ink-soft); cursor:pointer; }
 .preset-row button:hover{ border-color:var(--accent); color:var(--accent); }
 
-.holiday-add-row{ display:flex; gap:8px; align-items:center; }
-.holiday-add-row input[type=date]{ flex:1 1 auto; }
-.holiday-list{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
-.holiday-chip{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; padding:5px 6px 5px 10px; border-radius:999px; background:var(--surface-alt); border:1px solid var(--border); color:var(--ink); }
-.holiday-chip.sat{ border-color:var(--sat-wd); color:var(--sat-wd); }
-.holiday-chip.sun{ border-color:var(--sun-wd); color:var(--sun-wd); }
-.chip-remove{ width:18px; height:18px; border-radius:50%; border:none; background:transparent; color:inherit; cursor:pointer; font-size:10px; line-height:1; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
-.chip-remove:hover{ color:var(--danger); }
 
 .btn-primary,.btn-secondary,.btn-ghost{ font-weight:600; border-radius:8px; cursor:pointer; border:1px solid transparent; padding:9px 14px; font-size:13px; }
 .btn-primary{ background:var(--accent); color:var(--accent-ink); }
@@ -181,7 +173,8 @@ textarea{ resize:vertical; font-family:inherit; }
    an element+attribute selector, which outranks a bare class selector
    regardless of source order. */
 input.trade-name,input.trade-contractor{ background:var(--accent-soft); }
-.tasks{ display:flex; flex-direction:column; gap:8px; margin-bottom:8px; }
+.tasks{ display:flex; flex-direction:column; gap:10px; margin-bottom:8px; }
+.task-block{ display:flex; flex-direction:column; gap:6px; }
 .task-row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .task-name{ flex:1 1 42%; min-width:0; }
 /* task-date needs a real minimum width or the native date picker collapses
@@ -191,6 +184,18 @@ input.trade-name,input.trade-contractor{ background:var(--accent-soft); }
 .task-date{ flex:1 1 auto; min-width:105px; }
 .tilde{ color:var(--ink-faint); font-size:12px; flex:0 0 auto; }
 .empty-hint{ color:var(--ink-faint); font-size:13px; margin:0; }
+
+/* Per-task 休工日 picker: shown under a task's date range once it spans
+   more than one day, letting specific days within that span be toggled
+   as non-working without needing a separate global holiday list. */
+.restday-row{ display:flex; align-items:flex-start; gap:8px; padding-left:2px; }
+.restday-label{ flex:0 0 auto; font-size:11.5px; color:var(--ink-faint); padding-top:5px; }
+.restday-chips{ display:flex; flex-wrap:wrap; gap:5px; }
+.restday-chip{ font-size:11.5px; padding:4px 8px; border-radius:999px; border:1px solid var(--border); background:var(--surface-alt); color:var(--ink-soft); cursor:pointer; }
+.restday-chip.sat{ color:var(--sat-wd); }
+.restday-chip.sun{ color:var(--sun-wd); }
+.restday-chip:hover{ border-color:var(--border-strong); }
+.restday-chip.active{ background:var(--rest-mark); border-color:var(--rest-mark); color:#fff; }
 
 @media (max-width:600px){
   .trade-row{ flex-wrap:wrap; }
@@ -268,16 +273,17 @@ thead .col-trade,thead .col-contractor{ background:var(--surface-alt); z-index:3
 .daycol.sun{ background:var(--sun-bg); }
 .daycol.sun .d-wd{ color:var(--sun-wd); }
 .daycol.today{ box-shadow:inset 0 3px 0 var(--today); }
-.daycol.holiday{ background-image:repeating-linear-gradient(45deg, var(--holiday-stripe) 0 4px, transparent 4px 8px); }
-.d-holiday{ display:block; font-size:9px; font-weight:700; color:var(--holiday-mark); margin-top:1px; }
 .daycell{ height:34px; }
 .daycell.sat{ background:var(--sat-bg); }
 .daycell.sun{ background:var(--sun-bg); }
-.daycell.holiday{ background-image:repeating-linear-gradient(45deg, var(--holiday-stripe) 0 4px, transparent 4px 8px); }
 .daycell.today{ box-shadow:inset 0 0 0 1.5px var(--today); }
 tr.trade-end td{ border-bottom:2px solid var(--border-strong); }
 .task-bar{ font-weight:600; font-size:11.5px; padding:0 6px; text-overflow:ellipsis; overflow:hidden; background:var(--task-bg); border-left:4px solid var(--task-edge); }
 .task-bar.bar-today{ box-shadow:inset 0 0 0 2px var(--today); }
+/* 休工 segment within a task bar: same footprint as a normal bar, but
+   hatched instead of solid so it reads as "no work happening" without
+   breaking the row out of the gantt grid. */
+.task-bar.task-rest{ background:var(--surface-alt); background-image:repeating-linear-gradient(45deg, var(--rest-stripe) 0 4px, transparent 4px 8px); border-left:2px dashed var(--border-strong); color:var(--ink-soft); font-weight:600; }
 .empty-row{ padding:24px; color:var(--ink-faint); text-align:center; }
 
 .remarks-block{ margin-top:16px; border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; }
