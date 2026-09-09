@@ -47,6 +47,16 @@
     </div>
 
     <div class="card">
+      <h2>休工日</h2>
+      <div class="holiday-add-row">
+        <input type="date" id="f-holidayAdd">
+        <button type="button" id="btnAddHoliday" class="btn-primary small">+ 追加</button>
+      </div>
+      <div id="holidayList" class="holiday-list"></div>
+      <p class="hint">上で決めた表示期間の中に、休工日（休日・雨天順延日など）を追加できます。プレビューとExcelに反映されます。</p>
+    </div>
+
+    <div class="card">
       <div class="card-head">
         <h2>工種・作業</h2>
         <div class="card-head-actions">
@@ -130,6 +140,7 @@
     var t = new Date();
     return d.getFullYear()===t.getFullYear() && d.getMonth()===t.getMonth() && d.getDate()===t.getDate();
   }
+  function isHoliday(d){ return state.holidays.indexOf(isoOf(d)) !== -1; }
 
   function defaultState(){
     var start = todayISO();
@@ -141,6 +152,7 @@
       createdDate:start,
       startDate:start,
       days:14,
+      holidays:[],
       remarks:'・雨天時は屋外作業を順延します\n・資材搬入は北側ゲートを使用してください',
       trades:[
         { id:newId(), name:'仮設工事', contractor:'◯◯建設(株)', tasks:[
@@ -170,6 +182,9 @@
       createdDate:d.createdDate || todayISO(),
       startDate:d.startDate || todayISO(),
       days:Math.max(1, Math.min(60, Number(d.days) || 14)),
+      holidays:Array.isArray(d.holidays)
+        ? Array.from(new Set(d.holidays.filter(function(h){ return typeof h === 'string' && h; }))).sort()
+        : [],
       exportStartDate:d.exportStartDate || '',
       exportEndDate:d.exportEndDate || '',
       remarks:d.remarks || '',
@@ -266,7 +281,8 @@
           var d = days[di];
           var wd = weekendClass(d);
           var tdy = isToday(d) ? ' today' : '';
-          cells.push('<td class="daycell '+wd+tdy+'"></td>');
+          var hol = isHoliday(d) ? ' holiday' : '';
+          cells.push('<td class="daycell '+wd+tdy+hol+'"></td>');
           di++;
         }
       }
@@ -289,7 +305,8 @@
     var headCells = days.map(function(d){
       var wd = weekendClass(d);
       var tdy = isToday(d) ? ' today' : '';
-      return '<th class="daycol '+wd+tdy+'"><span class="d-num">'+(d.getMonth()+1)+'/'+d.getDate()+'</span><span class="d-wd">'+WD[d.getDay()]+'</span></th>';
+      var hol = isHoliday(d) ? ' holiday' : '';
+      return '<th class="daycol '+wd+tdy+hol+'"><span class="d-num">'+(d.getMonth()+1)+'/'+d.getDate()+'</span><span class="d-wd">'+WD[d.getDay()]+'</span>'+(hol?'<span class="d-holiday">休工</span>':'')+'</th>';
     }).join('');
 
     var bodyRows = state.trades.length
@@ -305,7 +322,7 @@
         '<div class="meta"><span class="meta-k">設計担当</span><span class="meta-v">'+(esc(state.designer)||'—')+'</span></div>'+
         '<div class="meta"><span class="meta-k">作成日</span><span class="meta-v">'+(fmtDate(state.createdDate)||'—')+'</span></div>'+
       '</div>'+
-      '<div class="period-line">期間　'+fmtDateW(start)+' 〜 '+fmtDateW(end)+'　（'+state.days+'日間） <span class="dot">・</span> 工種 '+state.trades.length+'件 <span class="dot">・</span> 作業 '+totalTasks+'件</div>'+
+      '<div class="period-line">期間　'+fmtDateW(start)+' 〜 '+fmtDateW(end)+'　（'+state.days+'日間） <span class="dot">・</span> 工種 '+state.trades.length+'件 <span class="dot">・</span> 作業 '+totalTasks+'件'+(state.holidays.length?' <span class="dot">・</span> 休工日 '+state.holidays.length+'日':'')+'</div>'+
       '<div class="grid-scroll"><table class="gantt">'+
         '<thead><tr class="date-row"><th class="col-trade">工種</th><th class="col-contractor">担当会社</th>'+headCells+'</tr></thead>'+
         '<tbody>'+bodyRows+'</tbody>'+
@@ -321,6 +338,8 @@
   var XLSX_TASK_FILL = 'FFBFBFBF';
   var XLSX_SAT_CELL_FILL = argbFromRgb([223,234,246]);
   var XLSX_SUN_CELL_FILL = argbFromRgb([251,225,222]);
+  var XLSX_HOLIDAY_CELL_FILL = argbFromRgb([250,224,150]);
+  var XLSX_HOLIDAY_HEADER_FILL = argbFromRgb([244,200,90]);
   var XLSX_FONT = '游ゴシック';
   function xlsxBorder(sides){
     var thin = { style:'thin' };
@@ -469,9 +488,10 @@
     });
     days.forEach(function(d, i){
       var cell = ws.getCell(headerRow, dayStartCol+i);
-      cell.value = (d.getMonth()+1)+'/'+d.getDate()+'\n('+WD[d.getDay()]+')';
+      var hol = isHoliday(d);
+      cell.value = (d.getMonth()+1)+'/'+d.getDate()+'\n('+WD[d.getDay()]+')'+(hol?'\n休':'');
       cell.font = { name:XLSX_FONT, size:8, bold:true };
-      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_HEADER_FILL} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb: hol ? XLSX_HOLIDAY_HEADER_FILL : XLSX_HEADER_FILL} };
       cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
       cell.border = xlsxBorder();
     });
@@ -490,7 +510,9 @@
       // Day columns always keep left/right gridlines; top/bottom only mark
       // the outer edge of the lane's own 3-row band (not between its sub-rows).
       var ROWS_PER_LANE = 3;
-      function weekendFill(wd){
+      function cellFill(d){
+        if(isHoliday(d)) return { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_HOLIDAY_CELL_FILL} };
+        var wd = d.getDay();
         if(wd===6) return { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_SAT_CELL_FILL} };
         if(wd===0) return { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_SUN_CELL_FILL} };
         return null;
@@ -510,7 +532,7 @@
           [padTopRow, taskRow, padBottomRow].forEach(function(rowIdx){ ws.getRow(rowIdx).height = 15; });
 
           days.forEach(function(d, di){
-            var fill = weekendFill(d.getDay());
+            var fill = cellFill(d);
             [padTopRow, taskRow, padBottomRow].forEach(function(rowIdx){
               var cell = ws.getCell(rowIdx, dayStartCol+di);
               cell.border = xlsxBorder(rowSides[rowIdx]);
@@ -640,6 +662,26 @@
     document.getElementById('tradesList').innerHTML = html || '<p class="empty-hint">工種がまだありません。「+ 工種を追加」から始めましょう。</p>';
   }
 
+  function renderHolidays(){
+    var listEl = document.getElementById('holidayList');
+    if(!state.holidays.length){
+      listEl.innerHTML = '<p class="empty-hint">休工日はまだ登録されていません。</p>';
+      return;
+    }
+    listEl.innerHTML = state.holidays.map(function(iso){
+      var d = parseDate(iso);
+      var wd = weekendClass(d);
+      return '<span class="holiday-chip'+(wd?(' '+wd):'')+'">'+fmtDateW(d)+
+        '<button type="button" class="chip-remove" data-holiday="'+esc(iso)+'" aria-label="この休工日を削除">✕</button></span>';
+    }).join('');
+  }
+
+  function updateHolidayInputRange(){
+    var input = document.getElementById('f-holidayAdd');
+    input.min = state.startDate || '';
+    input.max = state.startDate ? addDaysIso(state.startDate, Math.max(0, state.days-1)) : '';
+  }
+
   function hydrateForm(){
     document.getElementById('f-siteName').value = state.siteName || '';
     document.getElementById('f-projectName').value = state.projectName || '';
@@ -651,6 +693,7 @@
     document.getElementById('f-exportStart').value = state.exportStartDate || '';
     document.getElementById('f-exportEnd').value = state.exportEndDate || '';
     document.getElementById('f-remarks').value = state.remarks || '';
+    updateHolidayInputRange();
   }
 
   function addTrade(){
@@ -721,6 +764,8 @@
   bindStatic('f-createdDate','createdDate');
   bindStatic('f-startDate','startDate');
   bindStatic('f-days','days', function(v){ return Math.max(1, Math.min(60, Number(v) || 14)); });
+  document.getElementById('f-startDate').addEventListener('input', updateHolidayInputRange);
+  document.getElementById('f-days').addEventListener('input', updateHolidayInputRange);
   bindStatic('f-exportStart','exportStartDate');
   bindStatic('f-exportEnd','exportEndDate');
   bindStatic('f-remarks','remarks');
@@ -729,8 +774,28 @@
     btn.addEventListener('click', function(){
       state.days = Number(btn.dataset.weeks);
       document.getElementById('f-days').value = state.days;
+      updateHolidayInputRange();
       renderPreview();
     });
+  });
+
+  document.getElementById('btnAddHoliday').addEventListener('click', function(){
+    var input = document.getElementById('f-holidayAdd');
+    var iso = input.value;
+    if(!iso) return;
+    if(state.holidays.indexOf(iso) === -1){
+      state.holidays.push(iso);
+      state.holidays.sort();
+    }
+    input.value = '';
+    renderHolidays(); renderPreview();
+  });
+
+  document.getElementById('holidayList').addEventListener('click', function(e){
+    var btn = e.target.closest('[data-holiday]');
+    if(!btn) return;
+    state.holidays = state.holidays.filter(function(h){ return h!==btn.dataset.holiday; });
+    renderHolidays(); renderPreview();
   });
 
   document.getElementById('addTradeBtn').addEventListener('click', addTrade);
@@ -876,7 +941,7 @@
         if(!res.data){ flashCloudHint('データが見つかりませんでした。'); return; }
         state = normalizeState(res.data);
         currentScheduleId = id;
-        hydrateForm(); renderTrades(); renderPreview();
+        hydrateForm(); renderTrades(); renderHolidays(); renderPreview();
         flashCloudHint('読み込みました。');
       });
     });
@@ -957,6 +1022,7 @@
   // ---- init ----
   hydrateForm();
   renderTrades();
+  renderHolidays();
   renderPreview();
 })();
 </script>
