@@ -108,7 +108,6 @@
   function isoOf(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
   function pad(n){ return String(n).padStart(2,'0'); }
   function parseDate(iso){ return new Date(iso + 'T00:00:00'); }
-  function addDaysIso(iso, n){ var d = parseDate(iso); d.setDate(d.getDate()+n); return isoOf(d); }
 
   function esc(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
@@ -133,29 +132,15 @@
   function defaultState(){
     var start = todayISO();
     return {
-      siteName:'◯◯ビル増築工事',
-      projectName:'外壁改修および設備更新工事',
+      siteName:'',
+      projectName:'',
       siteRep:'',
       designer:'',
       createdDate:start,
       startDate:start,
       days:14,
-      remarks:'・雨天時は屋外作業を順延します\n・資材搬入は北側ゲートを使用してください',
-      trades:[
-        { id:newId(), name:'仮設工事', contractor:'◯◯建設(株)', tasks:[
-          { id:newId(), name:'足場組立', start:addDaysIso(start,0), end:addDaysIso(start,1) }
-        ]},
-        { id:newId(), name:'屋根工事', contractor:'△△工業(株)', tasks:[
-          { id:newId(), name:'屋根解体', start:addDaysIso(start,2), end:addDaysIso(start,3) },
-          { id:newId(), name:'屋根復旧', start:addDaysIso(start,6), end:addDaysIso(start,7) }
-        ]},
-        { id:newId(), name:'設備工事', contractor:'□□設備(有)', tasks:[
-          { id:newId(), name:'配管更新', start:addDaysIso(start,4), end:addDaysIso(start,8) }
-        ]},
-        { id:newId(), name:'電気工事', contractor:'××電設(株)', tasks:[
-          { id:newId(), name:'配線・盤交換', start:addDaysIso(start,8), end:addDaysIso(start,11) }
-        ]}
-      ]
+      remarks:'',
+      trades:[]
     };
   }
 
