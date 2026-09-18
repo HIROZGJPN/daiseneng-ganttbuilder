@@ -209,6 +209,19 @@ input.trade-name,input.trade-contractor{ background:var(--accent-soft); }
   .icon-btn{ width:36px; height:36px; font-size:14px; }
 }
 
+.project-tabs{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.project-tab{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; padding:7px 10px 7px 12px; border-radius:999px; border:1px solid var(--border); background:var(--surface-alt); color:var(--ink-soft); cursor:pointer; max-width:220px; }
+.project-tab .tab-label{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.project-tab:hover{ border-color:var(--accent); color:var(--accent); }
+.project-tab.active{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+.project-tab.active .tab-close{ color:var(--accent-ink); }
+.tab-close{ flex:0 0 auto; width:16px; height:16px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:10px; color:var(--ink-faint); }
+.tab-close:hover{ background:rgba(0,0,0,.15); }
+
+.export-project-picker{ margin-bottom:14px; padding-bottom:14px; border-bottom:1px dashed var(--border); }
+.export-project-picker .hint-label{ font-size:12px; color:var(--ink-soft); margin-bottom:8px; }
+.export-project-list{ display:flex; flex-wrap:wrap; gap:10px 16px; }
+
 .actions-row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
 .hint-check{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); cursor:pointer; }
 .hint-check input{ width:16px; height:16px; accent-color:var(--accent); cursor:pointer; }

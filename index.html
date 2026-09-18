@@ -25,10 +25,20 @@
       </div>
       <div class="field-grid">
         <label>現場名<input type="text" id="f-siteName" placeholder="例：◯◯ビル増築工事"></label>
-        <label>工事名<input type="text" id="f-projectName" placeholder="例：外壁改修および設備更新工事"></label>
         <label>現場代理人<input type="text" id="f-siteRep" placeholder="担当者名"></label>
         <label>設計担当<input type="text" id="f-designer" placeholder="担当者名"></label>
         <label>作成日<input type="date" id="f-createdDate"></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>工事</h2>
+        <button type="button" id="addProjectBtn" class="btn-primary small">+ 工事を追加</button>
+      </div>
+      <div class="project-tabs" id="projectTabs"></div>
+      <div class="field-grid">
+        <label>工事名<input type="text" id="f-projectName" placeholder="例：外壁改修および設備更新工事"></label>
       </div>
     </div>
 
@@ -64,6 +74,10 @@
 
     <div class="card actions-card">
       <h2>保存・出力</h2>
+      <div id="exportProjectPicker" class="export-project-picker" hidden>
+        <div class="hint-label">出力する工事（期間が同じ工事どうしは1枚にまとめて出力できます）</div>
+        <div class="export-project-list" id="exportProjectList"></div>
+      </div>
       <div class="field-grid two">
         <label>出力開始日（任意）<input type="date" id="f-exportStart"></label>
         <label>出力終了日（任意）<input type="date" id="f-exportEnd"></label>
@@ -129,29 +143,37 @@
     var t = new Date();
     return d.getFullYear()===t.getFullYear() && d.getMonth()===t.getMonth() && d.getDate()===t.getDate();
   }
-  function defaultState(){
+  function defaultProject(){
     var start = todayISO();
     return {
-      siteName:'',
+      id:newId(),
       projectName:'',
-      siteRep:'',
-      designer:'',
-      createdDate:start,
       startDate:start,
       days:14,
+      exportStartDate:'',
+      exportEndDate:'',
       remarks:'',
       trades:[]
     };
   }
 
-  function normalizeState(data){
-    var d = data || {};
+  function defaultState(){
+    var project = defaultProject();
     return {
-      siteName:d.siteName || '',
+      siteName:'',
+      siteRep:'',
+      designer:'',
+      createdDate:todayISO(),
+      projects:[project],
+      currentProjectId:project.id
+    };
+  }
+
+  function normalizeProject(p){
+    var d = p || {};
+    return {
+      id:d.id || newId(),
       projectName:d.projectName || '',
-      siteRep:d.siteRep || '',
-      designer:d.designer || '',
-      createdDate:d.createdDate || todayISO(),
       startDate:d.startDate || todayISO(),
       days:Math.max(1, Math.min(60, Number(d.days) || 14)),
       exportStartDate:d.exportStartDate || '',
@@ -175,6 +197,34 @@
     };
   }
 
+  // Accepts both the current shape (siteName/... + projects:[]) and the
+  // legacy single-project shape (siteName/projectName/startDate/days/trades
+  // all flat) from old localStorage drafts or cloud saves, wrapping the
+  // latter into a single-item projects array.
+  function normalizeState(data){
+    var d = data || {};
+    var projectsSrc = (Array.isArray(d.projects) && d.projects.length) ? d.projects : [{
+      projectName:d.projectName || '',
+      startDate:d.startDate || todayISO(),
+      days:d.days,
+      exportStartDate:d.exportStartDate || '',
+      exportEndDate:d.exportEndDate || '',
+      remarks:d.remarks || '',
+      trades:d.trades || []
+    }];
+    var projects = projectsSrc.map(normalizeProject);
+    var currentProjectId = projects.some(function(p){ return p.id === d.currentProjectId; })
+      ? d.currentProjectId : projects[0].id;
+    return {
+      siteName:d.siteName || '',
+      siteRep:d.siteRep || '',
+      designer:d.designer || '',
+      createdDate:d.createdDate || todayISO(),
+      projects:projects,
+      currentProjectId:currentProjectId
+    };
+  }
+
   var LS_KEY = 'koutei-builder-draft-v1';
   function loadDraft(){
     try{ var raw = localStorage.getItem(LS_KEY); if(raw) return JSON.parse(raw); }catch(e){}
@@ -187,10 +237,16 @@
   var draft = loadDraft();
   var state = normalizeState(draft || defaultState());
 
-  function buildDays(){
-    var start = parseDate(state.startDate);
+  function currentProject(){
+    var p = state.projects.find(function(p){ return p.id === state.currentProjectId; });
+    return p || state.projects[0];
+  }
+
+  function buildDays(project){
+    project = project || currentProject();
+    var start = parseDate(project.startDate);
     var arr = [];
-    for(var i=0;i<state.days;i++){
+    for(var i=0;i<project.days;i++){
       var d = new Date(start);
       d.setDate(d.getDate()+i);
       arr.push(d);
@@ -200,9 +256,10 @@
 
   // Excel出力専用の期間。出力開始日・終了日の両方が指定されていればそちらを
   // 使い、未指定ならプレビューと同じ表示期間（buildDays）にフォールバックする。
-  function buildExportDays(){
-    if(!state.exportStartDate || !state.exportEndDate) return buildDays();
-    var s = parseDate(state.exportStartDate), e = parseDate(state.exportEndDate);
+  function buildExportDays(project){
+    project = project || currentProject();
+    if(!project.exportStartDate || !project.exportEndDate) return buildDays(project);
+    var s = parseDate(project.exportStartDate), e = parseDate(project.exportEndDate);
     if(e < s){ var tmp=s; s=e; e=tmp; }
     var total = Math.max(1, Math.min(366, Math.round((e-s)/86400000)+1));
     var arr = [];
@@ -212,6 +269,17 @@
       arr.push(d);
     }
     return arr;
+  }
+
+  // Two projects can share a single Excel sheet only when their effective
+  // (export or display) periods line up exactly.
+  function periodsMatch(projects){
+    if(projects.length < 2) return true;
+    var base = buildExportDays(projects[0]);
+    return projects.every(function(p){
+      var days = buildExportDays(p);
+      return days.length === base.length && isoOf(days[0]) === isoOf(base[0]) && isoOf(days[days.length-1]) === isoOf(base[base.length-1]);
+    });
   }
 
   function assignLanes(tasks, startDate, totalDays){
@@ -304,10 +372,11 @@
   }
 
   function renderPreview(){
-    var days = buildDays();
+    var project = currentProject();
+    var days = buildDays(project);
     var start = days[0], end = days[days.length-1];
-    var titleLabel = (state.days % 7 === 0) ? ('【'+(state.days/7)+'週間工程表】') : ('【工程表（'+state.days+'日間）】');
-    var totalTasks = state.trades.reduce(function(sum,t){ return sum + t.tasks.filter(function(k){ return k.start && k.end; }).length; }, 0);
+    var titleLabel = (project.days % 7 === 0) ? ('【'+(project.days/7)+'週間工程表】') : ('【工程表（'+project.days+'日間）】');
+    var totalTasks = project.trades.reduce(function(sum,t){ return sum + t.tasks.filter(function(k){ return k.start && k.end; }).length; }, 0);
 
     var headCells = days.map(function(d){
       var wd = weekendClass(d);
@@ -315,25 +384,25 @@
       return '<th class="daycol '+wd+tdy+'"><span class="d-num">'+(d.getMonth()+1)+'/'+d.getDate()+'</span><span class="d-wd">'+WD[d.getDay()]+'</span></th>';
     }).join('');
 
-    var bodyRows = state.trades.length
-      ? state.trades.map(function(trade){ return renderTradeRows(trade, days); }).join('')
+    var bodyRows = project.trades.length
+      ? project.trades.map(function(trade){ return renderTradeRows(trade, days); }).join('')
       : '<tr><td class="empty-row" colspan="'+(2+days.length)+'">工種が登録されていません。左のパネルから追加してください。</td></tr>';
 
     document.getElementById('sheet').innerHTML =
       '<div class="sheet-title">'+titleLabel+'</div>'+
       '<div class="meta-grid">'+
         '<div class="meta"><span class="meta-k">現場名</span><span class="meta-v">'+(esc(state.siteName)||'—')+'</span></div>'+
-        '<div class="meta"><span class="meta-k">工事名</span><span class="meta-v">'+(esc(state.projectName)||'—')+'</span></div>'+
+        '<div class="meta"><span class="meta-k">工事名</span><span class="meta-v">'+(esc(project.projectName)||'—')+'</span></div>'+
         '<div class="meta"><span class="meta-k">現場代理人</span><span class="meta-v">'+(esc(state.siteRep)||'—')+'</span></div>'+
         '<div class="meta"><span class="meta-k">設計担当</span><span class="meta-v">'+(esc(state.designer)||'—')+'</span></div>'+
         '<div class="meta"><span class="meta-k">作成日</span><span class="meta-v">'+(fmtDate(state.createdDate)||'—')+'</span></div>'+
       '</div>'+
-      '<div class="period-line">期間　'+fmtDateW(start)+' 〜 '+fmtDateW(end)+'　（'+state.days+'日間） <span class="dot">・</span> 工種 '+state.trades.length+'件 <span class="dot">・</span> 作業 '+totalTasks+'件</div>'+
+      '<div class="period-line">期間　'+fmtDateW(start)+' 〜 '+fmtDateW(end)+'　（'+project.days+'日間） <span class="dot">・</span> 工種 '+project.trades.length+'件 <span class="dot">・</span> 作業 '+totalTasks+'件</div>'+
       '<div class="grid-scroll"><table class="gantt">'+
         '<thead><tr class="date-row"><th class="col-trade">工種</th><th class="col-contractor">担当会社</th>'+headCells+'</tr></thead>'+
         '<tbody>'+bodyRows+'</tbody>'+
       '</table></div>'+
-      '<div class="remarks-block"><div class="remarks-label">備考</div><div class="remarks-body">'+(state.remarks ? esc(state.remarks).replace(/\n/g,'<br>') : '　')+'</div></div>';
+      '<div class="remarks-block"><div class="remarks-label">備考</div><div class="remarks-body">'+(project.remarks ? esc(project.remarks).replace(/\n/g,'<br>') : '　')+'</div></div>';
 
     saveDraft();
   }
@@ -374,9 +443,11 @@
     return bounds;
   }
 
-  function buildXlsxBlob(includeContractor){
+  function buildXlsxBlob(includeContractor, projects){
     if(!window.ExcelJS) return Promise.resolve(null);
-    var days = buildExportDays();
+    projects = (projects && projects.length) ? projects : [currentProject()];
+    var multiProject = projects.length > 1;
+    var days = buildExportDays(projects[0]);
     var numDays = days.length;
     // 担当会社 column is optional: when omitted, 工種 alone occupies column A
     // and the day columns start one column earlier.
@@ -420,10 +491,11 @@
       xlsxBorderRange(ws, metaLabelRow, c1, metaValueRow, c2);
     }
 
+    var projectNamesLabel = projects.map(function(p){ return p.projectName||'工事'; }).join('、');
     metaBox(1, nameCols, '現場名', state.siteName||'—', 'left');
     var restBounds = splitColumnsByWeight(lastCol-nameCols, [6,2,2,4]);
     var restDefs = [
-      ['工事名', state.projectName||'—', 'left'],
+      ['工事名', projectNamesLabel||'—', 'left'],
       ['現場代理人', state.siteRep||'—', 'center'],
       ['設計担当', state.designer||'—', 'center']
     ];
@@ -501,7 +573,89 @@
     });
 
     var r = headerRow + 1;
-    if(!state.trades.length){
+    // Each lane gets 3 excel rows (thin padding / task / thin padding) for
+    // vertical breathing room, since a single row reads as too cramped.
+    // Day columns always keep left/right gridlines; top/bottom only mark
+    // the outer edge of the lane's own 3-row band (not between its sub-rows).
+    var ROWS_PER_LANE = 3;
+    function weekendFill(wd){
+      if(wd===6) return { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_SAT_CELL_FILL} };
+      if(wd===0) return { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_SUN_CELL_FILL} };
+      return null;
+    }
+    // Writes one 工種's lane rows starting at `startRow`; returns the next
+    // free row. Shared across projects so a combined multi-project sheet
+    // can stack each project's trades one after another.
+    function writeTradeBlock(trade, startRow){
+      var res = assignLanes(trade.tasks, days[0], days.length);
+      var laneCount = res.laneCount, placed = res.placed;
+      var tradeStartRow = startRow;
+      for(var lane=0; lane<laneCount; lane++){
+        var laneBase = startRow + lane*ROWS_PER_LANE;
+        var padTopRow = laneBase, taskRow = laneBase+1, padBottomRow = laneBase+2;
+        var rowSides = {};
+        rowSides[padTopRow] = ['left','right','top'];
+        rowSides[taskRow] = ['left','right'];
+        rowSides[padBottomRow] = ['left','right','bottom'];
+
+        [padTopRow, taskRow, padBottomRow].forEach(function(rowIdx){ ws.getRow(rowIdx).height = 15; });
+
+        days.forEach(function(d, di){
+          var fill = weekendFill(d.getDay());
+          [padTopRow, taskRow, padBottomRow].forEach(function(rowIdx){
+            var cell = ws.getCell(rowIdx, dayStartCol+di);
+            cell.border = xlsxBorder(rowSides[rowIdx]);
+            cell.font = { name:XLSX_FONT };
+            if(fill) cell.fill = fill;
+          });
+        });
+
+        var laneTasks = placed.filter(function(p){ return p.lane===lane; }).sort(function(a,b){ return a.startIdx-b.startIdx; });
+        var di = 0, ti = 0;
+        while(di < days.length){
+          var task = laneTasks[ti];
+          if(task && task.startIdx===di){
+            computeTaskRuns(task).forEach(function(run){
+              var startCol = dayStartCol+run.start, endCol = dayStartCol+run.end;
+              if(endCol>startCol) ws.mergeCells(taskRow,startCol,taskRow,endCol);
+              var fillArgb = run.rest ? XLSX_REST_FILL : XLSX_TASK_FILL;
+              for(var cc=startCol; cc<=endCol; cc++){
+                ws.getCell(taskRow,cc).fill = { type:'pattern', pattern:'solid', fgColor:{argb:fillArgb} };
+              }
+              // ラベルはバーの上の行に置く。作業名は最初の稼働区間、休工区間には「休工」と表示する。
+              if(run.showName || run.rest){
+                var tcell = ws.getCell(padTopRow,startCol);
+                tcell.value = run.showName ? (task.name || '') : '休工';
+                tcell.font = { name:XLSX_FONT, size:8 };
+                tcell.alignment = { horizontal:'left', vertical:'middle', indent:1 };
+              }
+            });
+            di += task.span; ti++;
+          } else {
+            di++;
+          }
+        }
+      }
+      var tradeEndRow = tradeStartRow + laneCount*ROWS_PER_LANE - 1;
+      ws.mergeCells(tradeStartRow,1,tradeEndRow,1);
+      for(var lr=tradeStartRow; lr<=tradeEndRow; lr++){ ws.getCell(lr,1).border = xlsxBorder(); }
+      var nameCell = ws.getCell(tradeStartRow,1);
+      nameCell.value = trade.name || '（工種名未入力）';
+      nameCell.font = { name:XLSX_FONT, size:10, bold:true };
+      nameCell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+      if(includeContractor){
+        ws.mergeCells(tradeStartRow,2,tradeEndRow,2);
+        for(var lr2=tradeStartRow; lr2<=tradeEndRow; lr2++){ ws.getCell(lr2,2).border = xlsxBorder(); }
+        var contCell = ws.getCell(tradeStartRow,2);
+        contCell.value = trade.contractor || '—';
+        contCell.font = { name:XLSX_FONT, size:10 };
+        contCell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+      }
+      return tradeStartRow + laneCount*ROWS_PER_LANE;
+    }
+
+    var anyTrades = projects.some(function(p){ return p.trades.length; });
+    if(!anyTrades){
       ws.mergeCells(r,1,r,lastCol);
       var emptyCell = ws.getCell(r,1);
       emptyCell.value = '工種が登録されていません。';
@@ -509,90 +663,41 @@
       emptyCell.font = { name:XLSX_FONT, size:10, color:{argb:'FF8C8C8C'} };
       r++;
     } else {
-      // Each lane gets 3 excel rows (thin padding / task / thin padding) for
-      // vertical breathing room, since a single row reads as too cramped.
-      // Day columns always keep left/right gridlines; top/bottom only mark
-      // the outer edge of the lane's own 3-row band (not between its sub-rows).
-      var ROWS_PER_LANE = 3;
-      function weekendFill(wd){
-        if(wd===6) return { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_SAT_CELL_FILL} };
-        if(wd===0) return { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_SUN_CELL_FILL} };
-        return null;
-      }
-      state.trades.forEach(function(trade){
-        var res = assignLanes(trade.tasks, days[0], days.length);
-        var laneCount = res.laneCount, placed = res.placed;
-        var tradeStartRow = r;
-        for(var lane=0; lane<laneCount; lane++){
-          var laneBase = r + lane*ROWS_PER_LANE;
-          var padTopRow = laneBase, taskRow = laneBase+1, padBottomRow = laneBase+2;
-          var rowSides = {};
-          rowSides[padTopRow] = ['left','right','top'];
-          rowSides[taskRow] = ['left','right'];
-          rowSides[padBottomRow] = ['left','right','bottom'];
-
-          [padTopRow, taskRow, padBottomRow].forEach(function(rowIdx){ ws.getRow(rowIdx).height = 15; });
-
-          days.forEach(function(d, di){
-            var fill = weekendFill(d.getDay());
-            [padTopRow, taskRow, padBottomRow].forEach(function(rowIdx){
-              var cell = ws.getCell(rowIdx, dayStartCol+di);
-              cell.border = xlsxBorder(rowSides[rowIdx]);
-              cell.font = { name:XLSX_FONT };
-              if(fill) cell.fill = fill;
-            });
-          });
-
-          var laneTasks = placed.filter(function(p){ return p.lane===lane; }).sort(function(a,b){ return a.startIdx-b.startIdx; });
-          var di = 0, ti = 0;
-          while(di < days.length){
-            var task = laneTasks[ti];
-            if(task && task.startIdx===di){
-              computeTaskRuns(task).forEach(function(run){
-                var startCol = dayStartCol+run.start, endCol = dayStartCol+run.end;
-                if(endCol>startCol) ws.mergeCells(taskRow,startCol,taskRow,endCol);
-                var fillArgb = run.rest ? XLSX_REST_FILL : XLSX_TASK_FILL;
-                for(var cc=startCol; cc<=endCol; cc++){
-                  ws.getCell(taskRow,cc).fill = { type:'pattern', pattern:'solid', fgColor:{argb:fillArgb} };
-                }
-                // ラベルはバーの上の行に置く。作業名は最初の稼働区間、休工区間には「休工」と表示する。
-                if(run.showName || run.rest){
-                  var tcell = ws.getCell(padTopRow,startCol);
-                  tcell.value = run.showName ? (task.name || '') : '休工';
-                  tcell.font = { name:XLSX_FONT, size:8 };
-                  tcell.alignment = { horizontal:'left', vertical:'middle', indent:1 };
-                }
-              });
-              di += task.span; ti++;
-            } else {
-              di++;
-            }
-          }
+      projects.forEach(function(project){
+        // A combined sheet gets a labeled divider row ahead of each
+        // project's own trades, so the boundary between 工事 stays clear.
+        if(multiProject){
+          ws.getRow(r).height = 20;
+          ws.mergeCells(r,1,r,lastCol);
+          var secCell = ws.getCell(r,1);
+          secCell.value = '【'+(project.projectName || '工事')+'】';
+          secCell.font = { name:XLSX_FONT, size:10, bold:true };
+          secCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_HEADER_FILL} };
+          secCell.alignment = { horizontal:'left', vertical:'middle', indent:1 };
+          xlsxBorderRange(ws, r, 1, r, lastCol);
+          r++;
         }
-        var tradeEndRow = tradeStartRow + laneCount*ROWS_PER_LANE - 1;
-        ws.mergeCells(tradeStartRow,1,tradeEndRow,1);
-        for(var lr=tradeStartRow; lr<=tradeEndRow; lr++){ ws.getCell(lr,1).border = xlsxBorder(); }
-        var nameCell = ws.getCell(tradeStartRow,1);
-        nameCell.value = trade.name || '（工種名未入力）';
-        nameCell.font = { name:XLSX_FONT, size:10, bold:true };
-        nameCell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
-        if(includeContractor){
-          ws.mergeCells(tradeStartRow,2,tradeEndRow,2);
-          for(var lr2=tradeStartRow; lr2<=tradeEndRow; lr2++){ ws.getCell(lr2,2).border = xlsxBorder(); }
-          var contCell = ws.getCell(tradeStartRow,2);
-          contCell.value = trade.contractor || '—';
-          contCell.font = { name:XLSX_FONT, size:10 };
-          contCell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+        if(!project.trades.length){
+          ws.mergeCells(r,1,r,lastCol);
+          var noTradeCell = ws.getCell(r,1);
+          noTradeCell.value = '工種が登録されていません。';
+          noTradeCell.alignment = { horizontal:'center', vertical:'middle' };
+          noTradeCell.font = { name:XLSX_FONT, size:9, color:{argb:'FF8C8C8C'} };
+          r++;
+        } else {
+          project.trades.forEach(function(trade){ r = writeTradeBlock(trade, r); });
         }
-        r += laneCount*ROWS_PER_LANE;
       });
     }
 
-    if(state.remarks){
+    var combinedRemarks = projects.filter(function(p){ return p.remarks; })
+      .map(function(p){ return multiProject ? '【'+(p.projectName||'工事')+'】\n'+p.remarks : p.remarks; })
+      .join('\n');
+    if(combinedRemarks){
       // One excel row per line, with the "備考" label merged vertically down
       // the whole block; body text sits unmerged in column B (overflows
       // visually into the empty cells to its right, same as Excel would show it).
-      var lines = state.remarks.split('\n');
+      var lines = combinedRemarks.split('\n');
       var remStartRow = r;
       lines.forEach(function(line, i){
         var rowIdx = remStartRow + i;
@@ -677,7 +782,7 @@
   }
 
   function renderTrades(){
-    var html = state.trades.map(function(trade){
+    var html = currentProject().trades.map(function(trade){
       var tasks = trade.tasks.map(function(task){
         return '<div class="task-block">'+
           '<div class="task-row">'+
@@ -706,31 +811,33 @@
   }
 
   function hydrateForm(){
+    var project = currentProject();
     document.getElementById('f-siteName').value = state.siteName || '';
-    document.getElementById('f-projectName').value = state.projectName || '';
     document.getElementById('f-siteRep').value = state.siteRep || '';
     document.getElementById('f-designer').value = state.designer || '';
     document.getElementById('f-createdDate').value = state.createdDate || '';
-    document.getElementById('f-startDate').value = state.startDate || '';
-    document.getElementById('f-days').value = state.days || 14;
-    document.getElementById('f-exportStart').value = state.exportStartDate || '';
-    document.getElementById('f-exportEnd').value = state.exportEndDate || '';
-    document.getElementById('f-remarks').value = state.remarks || '';
+    document.getElementById('f-projectName').value = project.projectName || '';
+    document.getElementById('f-startDate').value = project.startDate || '';
+    document.getElementById('f-days').value = project.days || 14;
+    document.getElementById('f-exportStart').value = project.exportStartDate || '';
+    document.getElementById('f-exportEnd').value = project.exportEndDate || '';
+    document.getElementById('f-remarks').value = project.remarks || '';
   }
 
   function addTrade(){
     var trade = { id:newId(), name:'', contractor:'', tasks:[{ id:newId(), name:'', start:'', end:'', restDays:[] }] };
-    state.trades.push(trade);
+    currentProject().trades.push(trade);
     renderTrades(); renderPreview();
     var el = document.querySelector('.trade-name[data-trade="'+trade.id+'"]');
     if(el) el.focus();
   }
   function removeTrade(id){
-    state.trades = state.trades.filter(function(t){ return t.id!==id; });
+    var project = currentProject();
+    project.trades = project.trades.filter(function(t){ return t.id!==id; });
     renderTrades(); renderPreview();
   }
   function addTask(tradeId){
-    var trade = state.trades.find(function(t){ return t.id===tradeId; });
+    var trade = currentProject().trades.find(function(t){ return t.id===tradeId; });
     if(!trade) return;
     var task = { id:newId(), name:'', start:'', end:'', restDays:[] };
     trade.tasks.push(task);
@@ -739,13 +846,13 @@
     if(el) el.focus();
   }
   function removeTask(tradeId, taskId){
-    var trade = state.trades.find(function(t){ return t.id===tradeId; });
+    var trade = currentProject().trades.find(function(t){ return t.id===tradeId; });
     if(!trade) return;
     trade.tasks = trade.tasks.filter(function(t){ return t.id!==taskId; });
     renderTrades(); renderPreview();
   }
   function toggleRestDay(tradeId, taskId, iso){
-    var trade = state.trades.find(function(t){ return t.id===tradeId; });
+    var trade = currentProject().trades.find(function(t){ return t.id===tradeId; });
     if(!trade) return;
     var task = trade.tasks.find(function(t){ return t.id===taskId; });
     if(!task) return;
@@ -761,6 +868,73 @@
       state[key] = transform ? transform(el.value) : el.value;
       renderPreview();
     });
+  }
+  function bindProjectField(id, key, transform){
+    var el = document.getElementById(id);
+    el.addEventListener('input', function(){
+      var project = currentProject();
+      project[key] = transform ? transform(el.value) : el.value;
+      if(key==='projectName'){ renderProjectTabs(); renderExportProjectPicker(); }
+      renderPreview();
+    });
+  }
+
+  function defaultProjectLabel(project){
+    var idx = state.projects.indexOf(project);
+    return project.projectName || ('工事'+(idx+1));
+  }
+
+  function renderProjectTabs(){
+    var html = state.projects.map(function(p){
+      var active = p.id === state.currentProjectId;
+      var closeBtn = state.projects.length > 1
+        ? '<span class="tab-close" data-action="remove-project" data-project="'+p.id+'" aria-label="この工事を削除">✕</span>'
+        : '';
+      return '<button type="button" class="project-tab'+(active?' active':'')+'" data-action="select-project" data-project="'+p.id+'">'+
+        '<span class="tab-label">'+esc(defaultProjectLabel(p))+'</span>'+closeBtn+
+      '</button>';
+    }).join('');
+    document.getElementById('projectTabs').innerHTML = html;
+  }
+
+  function renderExportProjectPicker(){
+    var container = document.getElementById('exportProjectPicker');
+    var list = document.getElementById('exportProjectList');
+    if(state.projects.length <= 1){ container.hidden = true; list.innerHTML = ''; return; }
+    var checkedIds = {};
+    list.querySelectorAll('.export-project-check').forEach(function(cb){ if(cb.checked) checkedIds[cb.dataset.project] = true; });
+    var hasAnyChecked = Object.keys(checkedIds).length > 0;
+    container.hidden = false;
+    list.innerHTML = state.projects.map(function(p){
+      var isChecked = hasAnyChecked ? !!checkedIds[p.id] : p.id === state.currentProjectId;
+      return '<label class="hint-check"><input type="checkbox" class="export-project-check" data-project="'+p.id+'"'+(isChecked?' checked':'')+'>'+esc(defaultProjectLabel(p))+'</label>';
+    }).join('');
+  }
+
+  function addProject(){
+    var project = defaultProject();
+    state.projects.push(project);
+    state.currentProjectId = project.id;
+    renderProjectTabs(); renderExportProjectPicker(); hydrateForm(); renderTrades(); renderPreview();
+    var el = document.getElementById('f-projectName');
+    if(el) el.focus();
+  }
+  function removeProject(id){
+    if(state.projects.length <= 1){ flashHint('工事は最低1件必要です。'); return; }
+    var idx = state.projects.findIndex(function(p){ return p.id===id; });
+    if(idx===-1) return;
+    var label = defaultProjectLabel(state.projects[idx]);
+    if(!window.confirm('「'+label+'」を削除します。よろしいですか？')) return;
+    state.projects.splice(idx,1);
+    if(state.currentProjectId === id){
+      state.currentProjectId = state.projects[Math.max(0, idx-1)].id;
+    }
+    renderProjectTabs(); renderExportProjectPicker(); hydrateForm(); renderTrades(); renderPreview();
+  }
+  function switchProject(id){
+    if(state.currentProjectId === id) return;
+    state.currentProjectId = id;
+    renderProjectTabs(); hydrateForm(); renderTrades(); renderPreview();
   }
 
   function saveErrorMessage(err){
@@ -791,20 +965,30 @@
 
   // ---- wire up static fields ----
   bindStatic('f-siteName','siteName');
-  bindStatic('f-projectName','projectName');
   bindStatic('f-siteRep','siteRep');
   bindStatic('f-designer','designer');
   bindStatic('f-createdDate','createdDate');
-  bindStatic('f-startDate','startDate');
-  bindStatic('f-days','days', function(v){ return Math.max(1, Math.min(60, Number(v) || 14)); });
-  bindStatic('f-exportStart','exportStartDate');
-  bindStatic('f-exportEnd','exportEndDate');
-  bindStatic('f-remarks','remarks');
+  bindProjectField('f-projectName','projectName');
+  bindProjectField('f-startDate','startDate');
+  bindProjectField('f-days','days', function(v){ return Math.max(1, Math.min(60, Number(v) || 14)); });
+  bindProjectField('f-exportStart','exportStartDate');
+  bindProjectField('f-exportEnd','exportEndDate');
+  bindProjectField('f-remarks','remarks');
+
+  document.getElementById('addProjectBtn').addEventListener('click', addProject);
+  document.getElementById('projectTabs').addEventListener('click', function(e){
+    var el = e.target.closest('[data-action]');
+    if(!el) return;
+    var action = el.dataset.action, id = el.dataset.project;
+    if(action==='remove-project') removeProject(id);
+    else if(action==='select-project') switchProject(id);
+  });
 
   document.querySelectorAll('[data-weeks]').forEach(function(btn){
     btn.addEventListener('click', function(){
-      state.days = Number(btn.dataset.weeks);
-      document.getElementById('f-days').value = state.days;
+      var project = currentProject();
+      project.days = Number(btn.dataset.weeks);
+      document.getElementById('f-days').value = project.days;
       renderPreview();
     });
   });
@@ -824,7 +1008,7 @@
   document.getElementById('tradesList').addEventListener('input', function(e){
     var el = e.target, field = el.dataset.field;
     if(!field) return;
-    var trade = state.trades.find(function(t){ return t.id===el.dataset.trade; });
+    var trade = currentProject().trades.find(function(t){ return t.id===el.dataset.trade; });
     if(!trade) return;
     if(field==='name') trade.name = el.value;
     else if(field==='contractor') trade.contractor = el.value;
@@ -842,9 +1026,21 @@
     if(inClaudeViewer){ flashHint('この画面ではExcel保存は利用できません。ページを配信環境（Vercelなど）に公開すると使えます。'); return; }
     if(!window.ExcelJS){ flashHint('Excel機能を読み込めませんでした。時間をおいて再度お試しください。'); return; }
     var includeContractor = document.getElementById('f-includeContractor').checked;
-    Promise.resolve().then(function(){ return buildXlsxBlob(includeContractor); }).then(function(blob){
+    var checkedIds = Array.from(document.querySelectorAll('.export-project-check:checked')).map(function(cb){ return cb.dataset.project; });
+    var projects = checkedIds.length
+      ? state.projects.filter(function(p){ return checkedIds.indexOf(p.id) !== -1; })
+      : [currentProject()];
+    if(!projects.length) projects = [currentProject()];
+    if(projects.length > 1 && !periodsMatch(projects)){
+      flashHint('選択した工事の期間が一致していません。期間が同じ工事のみ、まとめて出力できます。');
+      return;
+    }
+    var filename = projects.length > 1
+      ? '工程表_'+(state.siteName||'現場')+'_複数工事.xlsx'
+      : '工程表_'+(projects[0].projectName||'工事')+'.xlsx';
+    Promise.resolve().then(function(){ return buildXlsxBlob(includeContractor, projects); }).then(function(blob){
       if(!blob) throw { code:'unavailable' };
-      return saveFile('工程表_'+(state.projectName||'工事')+'.xlsx', blob, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      return saveFile(filename, blob, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }).then(function(){ flashHint('Excelファイルを保存しました。'); })
       .catch(function(err){ flashHint(err && err.code ? saveErrorMessage(err) : 'Excelファイルの作成に失敗しました。'); });
   });
@@ -852,7 +1048,6 @@
   document.getElementById('btnClearSite').addEventListener('click', function(){
     if(!window.confirm('現場情報をクリアします。よろしいですか？')) return;
     state.siteName = '';
-    state.projectName = '';
     state.siteRep = '';
     state.designer = '';
     state.createdDate = todayISO();
@@ -862,7 +1057,7 @@
 
   document.getElementById('btnClearTrades').addEventListener('click', function(){
     if(!window.confirm('工種・作業をすべてクリアします。よろしいですか？')) return;
-    state.trades = [];
+    currentProject().trades = [];
     renderTrades(); renderPreview();
     flashHint('工種・作業をクリアしました。');
   });
@@ -931,7 +1126,7 @@
 
   document.getElementById('btnCloudSave').addEventListener('click', function(){
     withCloudPasscode(function(passcode){
-      var name = state.projectName || state.siteName || '無題の工程表';
+      var name = state.siteName || currentProject().projectName || '無題の工程表';
       flashCloudHint('保存中…');
       return supabaseClient.rpc('schedules_save', { p_passcode:passcode, p_id:currentScheduleId, p_name:name, p_data:state }).then(function(res){
         if(res.error) throw res.error;
@@ -953,7 +1148,7 @@
         if(!res.data){ flashCloudHint('データが見つかりませんでした。'); return; }
         state = normalizeState(res.data);
         currentScheduleId = id;
-        hydrateForm(); renderTrades(); renderPreview();
+        renderProjectTabs(); renderExportProjectPicker(); hydrateForm(); renderTrades(); renderPreview();
         flashCloudHint('読み込みました。');
       });
     });
@@ -1032,6 +1227,8 @@
   })();
 
   // ---- init ----
+  renderProjectTabs();
+  renderExportProjectPicker();
   hydrateForm();
   renderTrades();
   renderPreview();
